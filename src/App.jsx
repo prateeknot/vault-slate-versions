@@ -8,9 +8,9 @@ import { supabase } from './lib/supabase'
 let PLAN_LIMITS = { free: 3, pro: 5, max: 10 }
 const CATEGORIES = ['All', 'Netflix', 'Amazon', 'Spotify', 'YouTube', 'Other']
 
-// Session-persisted admin code (used to gate admin RPCs)
-function getAdminCode() { try { return sessionStorage.getItem('vcz_admin_code') || '' } catch { return '' } }
-function setAdminCode(c) { try { c ? sessionStorage.setItem('vcz_admin_code', c) : sessionStorage.removeItem('vcz_admin_code') } catch {} }
+// Session-persisted admin token (issued by admin_login, gates all admin RPCs)
+function getAdminToken() { try { return sessionStorage.getItem('vcz_admin_token') || '' } catch { return '' } }
+function setAdminToken(t) { try { t ? sessionStorage.setItem('vcz_admin_token', t) : sessionStorage.removeItem('vcz_admin_token') } catch {} }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function formatCardNumber(num) {
@@ -406,16 +406,26 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
     const finalCode = code ?? adminCode.join('')
     if (finalCode.length < 6) { setAdminError('Enter all 6 digits'); return }
     setAdminLoading(true)
+    setAdminError('')
     try {
-      const { data, error } = await supabase.rpc('admin_verify_code', { p_code: finalCode })
+      const { data, error } = await supabase.rpc('admin_login', { p_code: finalCode })
       if (error) throw error
-      const found = data && data.length > 0 && data[0].is_active ? data[0] : null
-      if (!found) { setAdminError('Invalid admin code. Try again.'); setAdminCode(['', '', '', '', '', '']); return }
-      setAdminCode(finalCode) // keep for display
-      setAdminCode(finalCode.split(''))
+      if (!data?.ok) {
+        if (data?.error === 'COOLDOWN') {
+          setAdminError(`Too many attempts. Try again in ${data.retry_after}s`)
+        } else if (data?.error === 'SESSION_ACTIVE') {
+          setAdminError('An admin session is already active on another device')
+        } else {
+          setAdminError('Invalid admin code. Try again.')
+        }
+        setAdminCode(['', '', '', '', '', ''])
+        setAdminLoading(false)
+        setTimeout(() => document.getElementById('acode-0')?.focus(), 50)
+        return
+      }
+      setAdminToken(data.session_token)
       setAdminLoading(false)
-      setTimeout(() => document.getElementById('acode-0')?.focus(), 50)
-      onAdminLogin(finalCode)
+      onAdminLogin(data)
     } catch (err) {
       setAdminLoading(false)
       setAdminError(err.message || 'Verification failed')
@@ -706,39 +716,45 @@ function CardsPage({ currentUser, onNavigate }) {
   const [claimed, setClaimed] = useState([])
   const [planLimit, setPlanLimit] = useState(3)
   const [loading, setLoading] = useState(true)
-  const [claiming, setClaiming] = useState(null)
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 2500)
   }, [])
 
+  const normalizeCards = (rows) => (rows || []).map((c) => ({
+    id: c.id,
+    card_number: c.card_number,
+    cardholder_name: c.cardholder_name,
+    name: c.cardholder_name || c.label || 'Card',
+    bank: c.provider,
+    provider: c.provider,
+    category: c.label || 'Other',
+    last4: c.number_prefix,
+    expiry: c.expiry,
+    cvv: c.cvv,
+    is_active: true,
+    unlocked: !!c.unlocked,
+    created_at: c.created_at,
+  }))
+
   const fetchData = useCallback(async () => {
     try {
       if (isGuest) {
-        const { data, error } = await supabase.from('masked_cards')
-          .select('id, last4, bank, provider, category, plan_tier, created_at')
-          .order('created_at', { ascending: false })
-        if (error) throw error
-        setAvailable(data || [])
+        setAvailable([])
         setClaimed([])
         setPlanLimit(3)
         return
       }
-      const { data: planRows } = await supabase.rpc('get_my_plan')
-      let limit = 3
-      let currentPlan = 'free'
-      if (planRows && planRows.length > 0) {
-        currentPlan = planRows[0].plan_id
-        limit = planRows[0].card_limit
-      }
-      setPlanLimit(limit)
-      const [availRes, claimedRes] = await Promise.all([
-        supabase.rpc('get_available_cards', { p_plan: currentPlan }),
-        supabase.rpc('get_claimed_card_details'),
+      const [overviewRes, cardsRes] = await Promise.all([
+        supabase.rpc('my_overview'),
+        supabase.rpc('cards_for_me'),
       ])
-      setAvailable(availRes.data || [])
-      setClaimed(claimedRes.data || [])
+      const overview = overviewRes.data || {}
+      const rows = normalizeCards(cardsRes.data)
+      setPlanLimit(overview.card_limit ?? 3)
+      setClaimed(rows.filter((c) => c.unlocked))
+      setAvailable(rows.filter((c) => !c.unlocked))
     } catch (err) {
       console.error('Fetch error:', err)
       showToast('Could not load cards', 'error')
@@ -752,28 +768,10 @@ function CardsPage({ currentUser, onNavigate }) {
   useEffect(() => {
     if (isGuest) return
     const channel = supabase.channel('cards-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'plans' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_cards' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cards' }, () => fetchData())
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [isGuest, fetchData])
-
-  const handleClaim = async (card) => {
-    if (!currentUser || isGuest) { showToast('Please sign in to claim cards', 'error'); return }
-    if (claimed.length >= planLimit) { showToast(`You've claimed your maximum of ${planLimit} cards`, 'error'); return }
-    setClaiming(card.id)
-    try {
-      const { data: ok, error } = await supabase.rpc('claim_card', { p_card_id: card.id })
-      if (error) throw error
-      if (!ok) { showToast('Limit reached or card is no longer available', 'error'); }
-      else showToast(`${card.bank} / ${card.provider} claimed!`)
-      fetchData()
-    } catch (err) {
-      showToast('Failed to claim: ' + err.message, 'error')
-    } finally {
-      setClaiming(null)
-    }
-  }
 
   const visibleAvailable = available.filter((c) =>
     (selectedCategory === 'All' || c.category === selectedCategory) &&
@@ -838,7 +836,7 @@ function CardsPage({ currentUser, onNavigate }) {
         {!isGuest && (
           <div className="flex items-center justify-between mb-4">
             <p className="text-[12px] text-muted-foreground">
-              <span className="text-foreground font-semibold">{claimed.length}</span> of {planLimit} cards claimed
+              <span className="text-foreground font-semibold">{claimed.length}</span> of {planLimit} cards unlocked
             </p>
             {remainingClaims > 0 && visibleAvailable.length > 0 && (
               <button onClick={() => onNavigate('pricing')} className="text-[11px] text-brand font-semibold hover:underline">Unlock more</button>
@@ -852,11 +850,11 @@ function CardsPage({ currentUser, onNavigate }) {
           ))}
           {visibleAvailable.map((card) => (
             <div key={card.id} className="rounded-2xl border border-border overflow-hidden">
-              <CardListItem card={card} onOpen={() => handleClaim(card)} />
+              <CardListItem card={card} locked />
               <div className="px-4 pb-3 bg-white border-t border-border/60 -mt-2 pt-2.5">
-                <button onClick={() => handleClaim(card)} disabled={claiming === card.id || (remainingClaims <= 0 && !isGuest)}
-                  className={`w-full py-2.5 rounded-xl font-bold text-[13px] transition-all disabled:opacity-40 active:scale-[0.98] ${remainingClaims <= 0 && !isGuest ? 'bg-surface border border-border text-muted-foreground' : 'bg-brand text-white shadow-sm'}`}>
-                  {claiming === card.id ? 'Claiming…' : isGuest ? 'Claim (Sign in)' : claimed.some((c) => c.id === card.id) ? 'Claimed' : 'Claim this card'}
+                <button onClick={() => (isGuest ? onNavigate('auth') : onNavigate('pricing'))}
+                  className="w-full py-2.5 rounded-xl font-bold text-[13px] transition-all active:scale-[0.98] bg-surface border border-border text-muted-foreground">
+                  {isGuest ? 'Sign in to unlock' : 'Locked — upgrade your plan'}
                 </button>
               </div>
             </div>
@@ -951,11 +949,15 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
   const handleAdmin = async () => {
     if (adminCodeInput.length !== 6) return
     try {
-      const { data, error } = await supabase.rpc('admin_verify_code', { p_code: adminCodeInput })
+      const { data, error } = await supabase.rpc('admin_login', { p_code: adminCodeInput })
       if (error) throw error
-      const found = data && data.length > 0 && data[0].is_active
-      if (found) onNavigate('admin')
-      else { setShowAdminInput(false); window.alert('Invalid admin code') }
+      if (data?.ok) {
+        setAdminToken(data.session_token)
+        onNavigate('admin')
+      } else {
+        setShowAdminInput(false)
+        window.alert(data?.error === 'COOLDOWN' ? `Too many attempts. Try again in ${data.retry_after}s` : 'Invalid admin code')
+      }
     } catch {
       setShowAdminInput(false)
       window.alert('Invalid admin code')
@@ -1026,7 +1028,7 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
             onClick={() => setShowAdminInput(!showAdminInput)}
             className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-surface transition-colors text-left"
           >
-            <svg className="w-4.5 h-4.5 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
+            <svg className="w-4 h-4 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
             <p className="text-[13px] font-semibold text-foreground">Admin Access</p>
             <svg className={`w-4 h-4 text-muted-foreground ml-auto transition-transform ${showAdminInput ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
           </button>
@@ -1048,7 +1050,7 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
         </div>
 
         <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-red-200 bg-red-50 text-red-600 font-semibold text-[14px] hover:bg-red-100 transition-colors">
-          <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
           Sign Out
         </button>
       </main>
@@ -1060,20 +1062,20 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
 
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
 function AdminPanelPage({ onNavigate }) {
-  const code = getAdminCode()
+  const token = getAdminToken()
   const [activeTab, setActiveTab] = useState('overview')
   const [cards, setCards] = useState([])
   const [users, setUsers] = useState([])
   const [totalUsers, setTotalUsers] = useState(0)
-  const [planLimits, setPlanLimits] = useState({ free: PLAN_LIMITS.free, pro: PLAN_LIMITS.pro, max: PLAN_LIMITS.max })
+  const [planLimits, setPlanLimits] = useState({ Free: PLAN_LIMITS.free, Pro: PLAN_LIMITS.pro, Max: PLAN_LIMITS.max })
   const [adminCodes, setAdminCodes] = useState([])
   const [cardSearch, setCardSearch] = useState('')
   const [userSearch, setUserSearch] = useState('')
   const [dataLoading, setDataLoading] = useState(true)
   const [toast, setToast] = useState(null)
 
-  const EMPTY_FORM = { card_number: '', name: '', expiry: '', cvv: '', bank: '', provider: 'Visa', category: 'Other', is_active: true, plan: 'free' }
-  const PLAN_TIERS = ['free', 'pro', 'max', 'all']
+  const EMPTY_FORM = { card_number: '', name: '', expiry: '', cvv: '', provider: 'Visa', label: '', is_active: true }
+  const PLAN_TIERS = ['Free', 'Pro', 'Max']
   const [showCardModal, setShowCardModal] = useState(false)
   const [editingCard, setEditingCard] = useState(null)
   const [formData, setFormData] = useState(EMPTY_FORM)
@@ -1081,14 +1083,11 @@ function AdminPanelPage({ onNavigate }) {
 
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkText, setBulkText] = useState('')
-  const [bulkPlan, setBulkPlan] = useState('free')
-  const [bulkCategory, setBulkCategory] = useState('Other')
   const [bulkPreview, setBulkPreview] = useState([])
 
   const showToast = useCallback((msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500) }, [])
 
   const RANDOM_NAMES = ['RAHUL SHARMA','PRIYA SINGH','AMIT VERMA','SNEHA GUPTA','VIKRAM NAIR','NEHA REDDY','ROHAN MISHRA','KAVYA PATEL','ANKIT JHA','POOJA IYER','SURESH KUMAR','MEERA JHA']
-  const RANDOM_BANKS = ['HDFC Bank','ICICI Bank','SBI','Axis Bank','Kotak Mahindra','Yes Bank','Punjab National Bank','Bank of Baroda','Canara Bank','IndusInd Bank']
   const RANDOM_PROVIDERS = ['Visa','Mastercard','Amex','Discover','RuPay']
 
   const parseBulkText = (text) => {
@@ -1114,29 +1113,42 @@ function AdminPanelPage({ onNavigate }) {
     return parsed
   }
 
+  const normalizeCard = (c) => ({
+    id: c.id,
+    card_number: c.card_number,
+    name: c.cardholder_name || c.label || '—',
+    bank: c.provider,
+    provider: c.provider,
+    category: c.label || 'Other',
+    cardholder_name: c.cardholder_name,
+    expiry: c.expiry,
+    cvv: c.cvv,
+    label: c.label,
+    notes: c.notes,
+    is_active: c.is_active,
+    created_at: c.created_at,
+  })
+
   const fetchAll = async () => {
+    if (!token) { setDataLoading(false); return }
     setDataLoading(true)
     try {
-      const [cardsRes, plansRes, codesRes, usersRes] = await Promise.all([
-        supabase.rpc('admin_list_cards', { p_code: code }),
-        supabase.rpc('admin_list_plans', { p_code: code }),
-        supabase.rpc('admin_list_codes', { p_code: code }),
-        supabase.rpc('admin_count_users', { p_code: code }),
+      const [cardsRes, plansRes, codesRes, statsRes, usersRes] = await Promise.all([
+        supabase.rpc('admin_cards', { p_token: token }),
+        supabase.rpc('admin_limits', { p_token: token }),
+        supabase.rpc('admin_codes_list', { p_token: token }),
+        supabase.rpc('admin_stats', { p_token: token }),
+        supabase.rpc('admin_users', { p_token: token }),
       ])
-      if (cardsRes.data) setCards(cardsRes.data)
+      if (cardsRes.data) setCards(cardsRes.data.map(normalizeCard))
       if (plansRes.data) {
         const limits = {}
-        plansRes.data.forEach((p) => { limits[p.id] = p.card_limit })
+        plansRes.data.forEach((p) => { limits[p.plan_type] = p.card_limit })
         setPlanLimits((prev) => ({ ...prev, ...limits }))
       }
       if (codesRes.data) setAdminCodes(codesRes.data)
-      if (usersRes.data != null) setTotalUsers(usersRes.data)
-      let u = []
-      try {
-        const ur = await supabase.rpc('admin_list_users', { p_code: code })
-        if (!ur.error && ur.data) u = ur.data
-      } catch { u = [] }
-      setUsers(u)
+      if (statsRes.data) setTotalUsers(statsRes.data.total_users ?? 0)
+      if (usersRes.data) setUsers(usersRes.data.map((u) => ({ ...u, name: u.display_name, plan: u.plan_type })))
     } catch (err) {
       showToast('Failed to load admin data', 'error')
     } finally {
@@ -1147,37 +1159,31 @@ function AdminPanelPage({ onNavigate }) {
   useEffect(() => { fetchAll() }, [])
 
   const handleSaveCard = async () => {
-    if (!formData.card_number || !formData.name || !formData.expiry || !formData.cvv || !formData.bank) { showToast('Fill all required fields', 'error'); return }
-    const args = {
-      p_code: code,
-      p_number: formData.card_number, p_name: formData.name, p_expiry: formData.expiry,
-      p_cvv: formData.cvv, p_bank: formData.bank, p_provider: formData.provider,
-      p_category: formData.category, p_plan: formData.plan === 'all' ? 'free' : formData.plan, p_active: formData.is_active,
+    if (!formData.card_number || !formData.name || !formData.expiry || !formData.cvv) { showToast('Fill all required fields', 'error'); return }
+    const payload = {
+      p_token: token,
+      p_id: editingCard?.id ?? null,
+      p_card_number: formData.card_number,
+      p_cardholder_name: formData.name,
+      p_expiry: formData.expiry,
+      p_cvv: formData.cvv,
+      p_provider: formData.provider,
+      p_is_active: formData.is_active,
+      p_label: formData.label || null,
     }
     try {
-      if (editingCard) {
-        const { error } = await supabase.rpc('admin_update_card', { ...argsToCardUpdate(args), p_id: editingCard.id })
-        if (error) throw error
-        showToast('Card updated')
-      } else {
-        const { error } = await supabase.rpc('admin_add_card', args)
-        if (error) throw error
-        showToast('New card added')
-      }
+      const { error } = await supabase.rpc('admin_card_save', payload)
+      if (error) throw error
+      showToast(editingCard ? 'Card updated' : 'New card added')
       setShowCardModal(false)
       fetchAll()
     } catch (err) { showToast('Failed to save card: ' + err.message, 'error') }
   }
 
-  const argsToCardUpdate = (a) => ({
-    card_number: a.p_number, name: a.p_name, expiry: a.p_expiry, cvv: a.p_cvv,
-    bank: a.p_bank, provider: a.p_provider, category: a.p_category, plan: a.p_plan === 'all' ? 'free' : a.p_plan, is_active: a.p_active,
-  })
-
   const handleDeleteCard = async () => {
     if (!deleteTarget) return
     try {
-      const { error } = await supabase.rpc('admin_delete_card', { p_code: code, p_id: deleteTarget.id })
+      const { error } = await supabase.rpc('admin_card_delete', { p_token: token, p_id: deleteTarget.id })
       if (error) throw error
       showToast('Card deleted', 'info')
       setDeleteTarget(null)
@@ -1187,7 +1193,7 @@ function AdminPanelPage({ onNavigate }) {
 
   const toggleCardStatus = async (card) => {
     try {
-      const { error } = await supabase.rpc('admin_toggle_card', { p_code: code, p_id: card.id })
+      const { error } = await supabase.rpc('admin_card_toggle', { p_token: token, p_id: card.id })
       if (error) throw error
       showToast('Card status updated')
       fetchAll()
@@ -1196,26 +1202,17 @@ function AdminPanelPage({ onNavigate }) {
 
   const changePlan = async (userId, newPlan) => {
     try {
-      const { error } = await supabase.rpc('admin_update_user_plan', { p_code: code, p_user_id: userId, p_plan: newPlan })
+      const { error } = await supabase.rpc('admin_user_plan', { p_token: token, p_id: userId, p_plan: newPlan })
       if (error) throw error
       showToast(`Plan updated to ${newPlan}`)
       fetchAll()
-    } catch (err) { showToast('User plan update not available: ' + err.message, 'error') }
-  }
-
-  const toggleUserStatus = async (user) => {
-    try {
-      const { error } = await supabase.rpc('admin_toggle_user_status', { p_code: code, p_user_id: user.id })
-      if (error) throw error
-      showToast('User status toggled')
-      fetchAll()
-    } catch (err) { showToast('User status not available: ' + err.message, 'error') }
+    } catch (err) { showToast('User plan update failed: ' + err.message, 'error') }
   }
 
   const savePlanLimits = async () => {
     try {
       for (const [plan, limit] of Object.entries(planLimits)) {
-        const { error } = await supabase.rpc('admin_update_plan', { p_code: code, p_plan: plan, p_limit: limit })
+        const { error } = await supabase.rpc('admin_limit_set', { p_token: token, p_plan: plan, p_limit: limit })
         if (error) throw error
       }
       showToast('Plan limits saved')
@@ -1225,7 +1222,7 @@ function AdminPanelPage({ onNavigate }) {
 
   const addAdminCode = async () => {
     try {
-      const { error } = await supabase.rpc('admin_add_code', { p_code: code, p_new_code: newCode, p_label: newCodeLabel })
+      const { error } = await supabase.rpc('admin_code_add', { p_token: token, p_code: newCode, p_label: newCodeLabel })
       if (error) throw error
       showToast('Admin code added')
       setNewCode(''); setNewCodeLabel('')
@@ -1235,17 +1232,9 @@ function AdminPanelPage({ onNavigate }) {
   const [newCode, setNewCode] = useState('')
   const [newCodeLabel, setNewCodeLabel] = useState('')
 
-  const toggleAdminCode = async (c) => {
-    try {
-      const { error } = await supabase.rpc('admin_toggle_code', { p_code: code, p_id: c.id })
-      if (error) throw error
-      showToast('Code toggled', 'info')
-      fetchAll()
-    } catch (err) { showToast('Failed: ' + err.message, 'error') }
-  }
   const deleteAdminCode = async (c) => {
     try {
-      const { error } = await supabase.rpc('admin_delete_code', { p_code: code, p_id: c.id })
+      const { error } = await supabase.rpc('admin_code_delete', { p_token: token, p_id: c.id })
       if (error) throw error
       showToast('Code removed', 'info')
       fetchAll()
@@ -1256,28 +1245,27 @@ function AdminPanelPage({ onNavigate }) {
     if (bulkPreview.length === 0) { showToast('No valid cards parsed', 'error'); return }
     let ok = 0
     for (const p of bulkPreview) {
-      const { error } = await supabase.rpc('admin_add_card', {
-        p_code: code,
-        p_number: p.card_number,
-        p_name: RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)],
+      const { error } = await supabase.rpc('admin_card_save', {
+        p_token: token,
+        p_id: null,
+        p_card_number: p.card_number,
+        p_cardholder_name: RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)],
         p_expiry: p.expiry,
         p_cvv: p.cvv,
-        p_bank: RANDOM_BANKS[Math.floor(Math.random() * RANDOM_BANKS.length)],
         p_provider: RANDOM_PROVIDERS[Math.floor(Math.random() * RANDOM_PROVIDERS.length)],
-        p_category: bulkCategory,
-        p_plan: bulkPlan === 'all' ? 'free' : bulkPlan,
-        p_active: true,
+        p_is_active: true,
+        p_label: 'Other',
       })
       if (!error) ok++
-      else { showToast('Bulk add failed on ' + p.number, 'error'); break }
+      else { showToast('Bulk add failed', 'error'); break }
     }
     showToast(`${ok} cards added`)
     setShowBulkModal(false); setBulkText(''); setBulkPreview([])
     fetchAll()
   }
 
-  const filteredCards = cards.filter((c) => !cardSearch || c.name?.toLowerCase().includes(cardSearch.toLowerCase()) || c.card_number?.includes(cardSearch) || c.bank?.toLowerCase().includes(cardSearch.toLowerCase()))
-  const filteredUsers = users.filter((u) => !userSearch || (u.name || u.email || '').toLowerCase().includes(userSearch.toLowerCase()) || (u.email || '').toLowerCase().includes(userSearch.toLowerCase()))
+  const filteredCards = cards.filter((c) => !cardSearch || c.name?.toLowerCase().includes(cardSearch.toLowerCase()) || c.card_number?.includes(cardSearch) || c.provider?.toLowerCase().includes(cardSearch.toLowerCase()))
+  const filteredUsers = users.filter((u) => !userSearch || (u.display_name || u.email || '').toLowerCase().includes(userSearch.toLowerCase()) || (u.email || '').toLowerCase().includes(userSearch.toLowerCase()))
 
   const stats = {
     totalCards: cards.length,
@@ -1299,7 +1287,7 @@ function AdminPanelPage({ onNavigate }) {
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar fixed inset-y-0 left-0 z-30">
         <div className="flex items-center gap-3 px-5 h-16 border-b border-border">
           <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
-            <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
           </div>
           <div>
             <p className="font-bold text-[14px] text-foreground">VCardz</p>
@@ -1310,7 +1298,7 @@ function AdminPanelPage({ onNavigate }) {
           {sidebarItems.map((item) => (
             <button key={item.id} onClick={() => setActiveTab(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all ${activeTab === item.id ? 'bg-brand text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-surface'}`}>
-              <svg className="w-4.5 h-4.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d={item.icon} /></svg>
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d={item.icon} /></svg>
               {item.label}
             </button>
           ))}
@@ -1320,7 +1308,7 @@ function AdminPanelPage({ onNavigate }) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             View User Side
           </button>
-          <button onClick={() => onNavigate('account')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-all">
+          <button onClick={async () => { try { await supabase.rpc('admin_logout', { p_token: token }) } catch {} setAdminToken(null); onNavigate('landing') }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-all">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
             Exit Admin
           </button>
@@ -1421,7 +1409,7 @@ function AdminPanelPage({ onNavigate }) {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-border bg-surface">{['Card', 'Holder', 'Bank', 'Provider', 'Category', 'Plan', 'Expiry', 'Status', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}</tr>
+                      <tr className="border-b border-border bg-surface">{['Card', 'Holder', 'Provider', 'Category', 'Expiry', 'Status', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {filteredCards.map((card) => (
@@ -1433,17 +1421,15 @@ function AdminPanelPage({ onNavigate }) {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-[13px] text-foreground font-semibold whitespace-nowrap">{card.name}</td>
-                          <td className="px-4 py-3 text-[12px] text-muted-foreground whitespace-nowrap">{card.bank}</td>
                           <td className="px-4 py-3 text-[12px] text-muted-foreground whitespace-nowrap">{card.provider}</td>
                           <td className="px-4 py-3"><span className="text-[11px] bg-surface-2 text-muted-foreground px-2 py-0.5 rounded-full border border-border">{card.category}</span></td>
-                          <td className="px-4 py-3"><span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full ${card.plan === 'all' ? 'bg-blue-100 text-blue-600' : card.plan === 'max' ? 'bg-amber-100 text-amber-600' : card.plan === 'pro' ? 'bg-brand-dim text-brand' : 'bg-surface-2 text-muted-foreground border border-border'}`}>{card.plan === 'all' ? 'All' : (card.plan || card.plan_tier || 'free')}</span></td>
                           <td className="px-4 py-3 text-[12px] text-muted-foreground font-mono whitespace-nowrap">{card.expiry}</td>
                           <td className="px-4 py-3">
                             <button onClick={() => toggleCardStatus(card)} className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${card.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>{card.is_active ? 'Active' : 'Inactive'}</button>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              <button onClick={() => { setEditingCard(card); setFormData({ card_number: card.card_number, name: card.name, expiry: card.expiry, cvv: card.cvv, bank: card.bank, provider: card.provider, category: card.category || 'Other', is_active: card.is_active, plan: card.plan || card.plan_tier || 'free' }); setShowCardModal(true) }} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand-dim transition-colors" title="Edit">
+                              <button onClick={() => { setEditingCard(card); setFormData({ card_number: card.card_number, name: card.name, expiry: card.expiry, cvv: card.cvv, label: card.label, provider: card.provider, is_active: card.is_active }); setShowCardModal(true) }} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand-dim transition-colors" title="Edit">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                               </button>
                               <button onClick={() => setDeleteTarget(card)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
@@ -1492,14 +1478,13 @@ function AdminPanelPage({ onNavigate }) {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full ${user.plan === 'pro' ? 'bg-brand-dim text-brand' : user.plan === 'max' ? 'bg-amber-100 text-amber-600' : 'bg-surface-2 text-muted-foreground border border-border'}`}>{user.plan || 'free'}</span>
+                            <span className={`text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full ${user.plan === 'Pro' ? 'bg-brand-dim text-brand' : user.plan === 'Max' ? 'bg-amber-100 text-amber-600' : 'bg-surface-2 text-muted-foreground border border-border'}`}>{user.plan || 'Free'}</span>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <select value={user.plan || 'free'} onChange={(e) => changePlan(user.id, e.target.value)} className="bg-surface border border-border rounded-lg px-2 py-1 text-[12px] text-foreground focus:outline-none focus:border-brand/50">
-                                {PLAN_TIERS.filter((t) => t !== 'all').map((t) => <option key={t} value={t}>{t}</option>)}
+                              <select value={user.plan || 'Free'} onChange={(e) => changePlan(user.id, e.target.value)} className="bg-surface border border-border rounded-lg px-2 py-1 text-[12px] text-foreground focus:outline-none focus:border-brand/50">
+                                {PLAN_TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
                               </select>
-                              <button onClick={() => toggleUserStatus(user)} className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors">Suspend</button>
                             </div>
                           </td>
                         </tr>
@@ -1509,7 +1494,7 @@ function AdminPanelPage({ onNavigate }) {
                 </div>
                 {filteredUsers.length === 0 && (
                   <div className="p-10 text-center">
-                    <p className="text-[13px] text-muted-foreground font-medium">{users.length === 0 ? 'User directory is not available yet (requires a new RPC).' : 'No users match your search.'}</p>
+                    <p className="text-[13px] text-muted-foreground font-medium">{users.length === 0 ? 'No users yet.' : 'No users match your search.'}</p>
                   </div>
                 )}
               </div>
@@ -1541,12 +1526,12 @@ function AdminPanelPage({ onNavigate }) {
                 <div className="divide-y divide-border">
                   {adminCodes.map((c) => (
                     <div key={c.id} className="flex items-center gap-3 py-3">
-                      <span className={`font-mono text-[13px] font-bold ${c.is_active ? 'text-foreground' : 'text-muted-foreground/50 line-through'}`}>{c.code}</span>
-                      {c.label && <span className="text-[11px] bg-surface-2 text-muted-foreground px-2 py-0.5 rounded-full border border-border">{c.label}</span>}
+                      {c.is_current && <span className="font-mono text-[13px] font-bold text-brand">●</span>}
+                      <span className={`text-[13px] font-semibold ${c.is_active ? 'text-foreground' : 'text-muted-foreground/50 line-through'}`}>{c.label || `Admin #${c.id.slice(0,4)}`}</span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>{c.is_active ? 'Active' : 'Inactive'}</span>
+                      <span className="text-[11px] text-muted-foreground/60">{c.created_at ? 'created ' + new Date(c.created_at).toLocaleDateString() : ''}</span>
                       <div className="flex-1" />
-                      <button onClick={() => toggleAdminCode(c)} className="text-[11px] font-bold text-brand hover:underline">{c.is_active ? 'Disable' : 'Enable'}</button>
-                      <button onClick={() => deleteAdminCode(c)} className="text-[11px] font-bold text-red-600 hover:underline">Delete</button>
+                      <button onClick={() => deleteAdminCode(c)} disabled={c.is_current} className="text-[11px] font-bold text-red-600 hover:underline disabled:opacity-40">Delete</button>
                     </div>
                   ))}
                 </div>
@@ -1576,10 +1561,6 @@ function AdminPanelPage({ onNavigate }) {
                   <input value={formData.name} onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))} placeholder="JOHN DOE" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground uppercase placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Bank *</label>
-                  <input value={formData.bank} onChange={(e) => setFormData((f) => ({ ...f, bank: e.target.value }))} placeholder="HDFC Bank" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
-                </div>
-                <div>
                   <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Expiry *</label>
                   <input value={formData.expiry} onChange={(e) => setFormData((f) => ({ ...f, expiry: e.target.value }))} placeholder="12/29" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
                 </div>
@@ -1593,16 +1574,10 @@ function AdminPanelPage({ onNavigate }) {
                     {['Visa', 'Mastercard', 'Amex', 'Discover', 'RuPay'].map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Category</label>
-                  <select value={formData.category} onChange={(e) => setFormData((f) => ({ ...f, category: e.target.value }))} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
+                <div className="col-span-2">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Label (Category)</label>
+                  <select value={formData.label} onChange={(e) => setFormData((f) => ({ ...f, label: e.target.value }))} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
                     {['Netflix', 'Amazon', 'Spotify', 'YouTube', 'Other'].map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Plan</label>
-                  <select value={formData.plan} onChange={(e) => setFormData((f) => ({ ...f, plan: e.target.value }))} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
-                    {PLAN_TIERS.map((t) => <option key={t} value={t}>{t === 'all' ? 'All' : t}</option>)}
                   </select>
                 </div>
               </div>
@@ -1630,20 +1605,6 @@ function AdminPanelPage({ onNavigate }) {
             </div>
             <p className="text-[12px] text-muted-foreground mb-4">One card per line: <span className="font-mono text-brand">cardnumber MM/YY CVV</span> (e.g. <span className="font-mono">4111111111111111 12/29 123</span>). Up to 1000 per batch.</p>
             <textarea value={bulkText} onChange={(e) => { setBulkText(e.target.value); setBulkPreview(parseBulkText(e.target.value)) }} placeholder={'4111111111111111 12/29 123\n4222222222222222 01/30 456\n...'} className="w-full h-40 bg-surface border border-border rounded-xl px-3 py-2.5 text-[12px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 resize-none" />
-            <div className="flex gap-3 mt-3">
-              <div className="flex-1">
-                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Plan</label>
-                <select value={bulkPlan} onChange={(e) => setBulkPlan(e.target.value)} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
-                  {PLAN_TIERS.map((t) => <option key={t} value={t}>{t === 'all' ? 'All' : t}</option>)}
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Category</label>
-                <select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
-                  {['Netflix', 'Amazon', 'Spotify', 'YouTube', 'Other'].map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
             <div className="flex items-center justify-between mt-3 text-[12px] text-muted-foreground">
               <span><span className="font-bold text-brand">{bulkPreview.length}</span> valid cards parsed</span>
             </div>
@@ -1702,13 +1663,13 @@ function App() {
     setView('cards')
   }, [])
 
-  const handleAdminLogin = useCallback((code) => {
-    setAdminCode(code)
+  const handleAdminLogin = useCallback((session) => {
+    setAdminToken(session?.session_token)
     try {
       const saved = sessionStorage.getItem('vcz_user')
-      setCurrentUser(saved ? JSON.parse(saved) : { email: '', name: 'Administrator', plan: 'max', isAdmin: true })
+      setCurrentUser(saved ? JSON.parse(saved) : { email: '', name: 'Administrator', plan: 'Max', isAdmin: true })
     } catch {
-      setCurrentUser({ email: '', name: 'Administrator', plan: 'max', isAdmin: true })
+      setCurrentUser({ email: '', name: 'Administrator', plan: 'Max', isAdmin: true })
     }
     setView('admin')
   }, [])
