@@ -1,0 +1,5 @@
+﻿const fs = require("fs")
+let c = fs.readFileSync("src/App.jsx", "utf8")
+c = c.replace('import { useState, useCallback } from "react"\n\n//', '//')
+fs.writeFileSync("src/App.jsx", c)
+console.log("Fixed. Lines:", c.split("\n").length)
