@@ -1,5 +1,0 @@
-﻿const fs = require("fs")
-let c = fs.readFileSync("src/App.jsx", "utf8")
-c = c.replace('import { useState, useCallback } from "react"\n\n//', '//')
-fs.writeFileSync("src/App.jsx", c)
-console.log("Final fix. Lines:", c.split("\n").length, "Has supabase:", c.includes("supabase"), "Has >:", c.includes(">"))

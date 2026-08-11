@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://zqckifdofenqmgjfuydj.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxY2tpZmRvZmVucW1namZ1eWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1ODE1NTksImV4cCI6MjEwMTE1NzU1OX0.Dsbhyko-tYF--O3hQxe6IouBvwPfDCFaJunKJdFthLw'
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
@@ -14,8 +14,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // role key bypasses RLS and can be extracted from the JS bundle. Admin
 // operations go through code-gated RPCs (migrations/0003_security_fixes.sql).
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-anon-key',
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       persistSession: true,

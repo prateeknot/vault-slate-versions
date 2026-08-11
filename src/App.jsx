@@ -1,8 +1,32 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './lib/supabase'
 
 // ─── View / Plan types ────────────────────────────────────────────────────────
 // (JS port keeps the same shapes as the original vcardz-source page.tsx)
+
+// ─── V2 PACK DEFINITIONS (INR Price -> USD Card Balance) ──────────────────────
+const V2_PACKS = [
+  { id: 'spark', name: 'Spark', price_inr: 299, balance_usd: 15, stars: 153, badge: 'Starter' },
+  { id: 'orbit', name: 'Orbit', price_inr: 499, balance_usd: 26, stars: 256, badge: 'Popular' },
+  { id: 'nova', name: 'Nova', price_inr: 799, balance_usd: 32, stars: 410, badge: 'Best Value' },
+  { id: 'galaxy', name: 'Galaxy', price_inr: 999, balance_usd: 49, stars: 512, badge: 'Pro' },
+  { id: 'cosmos', name: 'Cosmos', price_inr: 1299, balance_usd: 67, stars: 666, badge: 'Ultra' },
+  { id: 'infinity', name: 'Infinity', price_inr: 1599, balance_usd: 82, stars: 820, badge: 'Max Balance' },
+]
+
+const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
+const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
+const BOT_API_BASE = 'https://temp-card-bot.onrender.com'
+
+const TIER_BALANCES = {
+  free: 0,
+  spark: 15,
+  orbit: 26,
+  nova: 32,
+  galaxy: 49,
+  cosmos: 67,
+  infinity: 82,
+}
 
 // ─── Defaults & seed fallback (used only when Supabase is unreachable) ────────
 let PLAN_LIMITS = { free: 3, pro: 5, max: 10 }
@@ -10,7 +34,7 @@ const CATEGORIES = ['All', 'Netflix', 'Amazon', 'Spotify', 'YouTube', 'Other']
 
 // Session-persisted admin token (issued by admin_login, gates all admin RPCs)
 function getAdminToken() { try { return sessionStorage.getItem('vcz_admin_token') || '' } catch { return '' } }
-function setAdminToken(t) { try { t ? sessionStorage.setItem('vcz_admin_token', t) : sessionStorage.removeItem('vcz_admin_token') } catch {} }
+function setAdminToken(t) { try { t ? sessionStorage.setItem('vcz_admin_token', t) : sessionStorage.removeItem('vcz_admin_token') } catch { } }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function formatCardNumber(num) {
@@ -112,7 +136,14 @@ function VirtualCardVisual({ card, flipped = false, onFlip }) {
               <p className="text-[10px] text-white/60 uppercase tracking-widest font-bold">VCardz</p>
               <p className="text-[11px] text-white/50 mt-0.5 font-medium">{card.bank}</p>
             </div>
-            <ProviderLogo provider={card.provider} size="sm" />
+            <div className="flex items-center gap-2">
+              {card.balance_usd !== undefined && (
+                <span className="bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/30 text-white font-black text-[11px] shadow-sm tracking-wide">
+                  ${card.balance_usd} USD
+                </span>
+              )}
+              <ProviderLogo provider={card.provider} size="sm" />
+            </div>
           </div>
           <div className="relative z-10"><ChipSVG /></div>
           <div className="relative z-10">
@@ -178,7 +209,7 @@ function CopyButton({ value, label }) {
   const [copied, setCopied] = useState(false)
   return (
     <button
-      onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
+      onClick={() => { navigator.clipboard.writeText(value).catch(() => { }); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
       className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-brand transition-colors"
       aria-label={`Copy ${label}`}
     >
@@ -196,22 +227,22 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
     {
       id: 'landing', label: 'Home',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>,
-      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z"/><path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z"/></svg>,
+      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" /><path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" /></svg>,
     },
     {
       id: 'cards', label: 'Cards',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>,
-      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.273 5.625A4.483 4.483 0 015.25 4.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 3H5.25a3 3 0 00-2.977 2.625zM2.273 8.625A4.483 4.483 0 015.25 7.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 6H5.25a3 3 0 00-2.977 2.625zM5.25 9a3 3 0 00-3 3v6a3 3 0 003 3h13.5a3 3 0 003-3v-6a3 3 0 00-3-3H5.25zm6.75 8.25a2.25 2.25 0 110-4.5 2.25 2.25 0 010 4.5z"/></svg>,
+      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.273 5.625A4.483 4.483 0 015.25 4.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 3H5.25a3 3 0 00-2.977 2.625zM2.273 8.625A4.483 4.483 0 015.25 7.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 6H5.25a3 3 0 00-2.977 2.625zM5.25 9a3 3 0 00-3 3v6a3 3 0 003 3h13.5a3 3 0 003-3v-6a3 3 0 00-3-3H5.25zm6.75 8.25a2.25 2.25 0 110-4.5 2.25 2.25 0 010 4.5z" /></svg>,
     },
     {
       id: 'pricing', label: 'Plans',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /><path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" /></svg>,
-      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M5.25 2.25a3 3 0 00-3 3v4.318a3 3 0 00.879 2.121l9.58 9.581c.92.92 2.39 1.056 3.46.3a18.598 18.598 0 005.441-5.44c.757-1.072.62-2.54-.3-3.461L11.73 3.53a3 3 0 00-2.122-.879H5.25zM6.375 7.5a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" clipRule="evenodd"/></svg>,
+      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M5.25 2.25a3 3 0 00-3 3v4.318a3 3 0 00.879 2.121l9.58 9.581c.92.92 2.39 1.056 3.46.3a18.598 18.598 0 005.441-5.44c.757-1.072.62-2.54-.3-3.461L11.73 3.53a3 3 0 00-2.122-.879H5.25zM6.375 7.5a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" clipRule="evenodd" /></svg>,
     },
     {
       id: isLoggedIn ? 'account' : 'auth', label: isLoggedIn ? 'Account' : 'Login',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>,
-      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd"/></svg>,
+      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" /></svg>,
     },
   ]
 
@@ -312,23 +343,18 @@ function LandingPage({ isLoggedIn, onNavigate, availableCount }) {
         </section>
 
         <section className="mb-4">
-          <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold mb-4 text-center">Our Plans</p>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold mb-4 text-center">Top-Up Packs</p>
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { plan: 'Free', price: '₹0', cards: '3 cards', active: false },
-              { plan: 'Pro', price: '₹99/mo', cards: '5 cards', active: true },
-              { plan: 'Max', price: '₹199/mo', cards: '10 cards', active: false },
-            ].map((p) => (
-              <div key={p.plan} className={`relative rounded-2xl border p-3 text-center transition-all ${p.active ? 'border-brand bg-brand-dim shadow-sm' : 'border-border bg-surface'}`}>
-                {p.active && <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-brand text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Popular</div>}
-                <p className="font-bold text-[13px] text-foreground">{p.plan}</p>
-                <p className="text-brand font-bold text-[13px] mt-0.5">{p.price}</p>
-                <p className="text-muted-foreground text-[11px] mt-0.5">{p.cards}</p>
+            {V2_PACKS.slice(0, 6).map((p) => (
+              <div key={p.id} className="relative rounded-2xl border p-3 text-center transition-all border-border bg-surface">
+                <p className="font-bold text-[13px] text-foreground">{p.name}</p>
+                <p className="text-brand font-bold text-[13px] mt-0.5">₹{p.price_inr}</p>
+                <p className="text-muted-foreground text-[11px] mt-0.5">${p.balance_usd} USD</p>
               </div>
             ))}
           </div>
           <button onClick={() => onNavigate('pricing')} className="mt-3 w-full text-[13px] text-brand font-semibold py-2.5 rounded-xl border border-brand/25 hover:bg-brand-dim transition-colors">
-            Compare plans
+            View all packs
           </button>
         </section>
       </main>
@@ -348,19 +374,85 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
   const [plan, setPlan] = useState('free')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const turnstileRef = useRef(null)
+  const turnstileIdRef = useRef(null)
 
   const [adminCode, setAdminCode] = useState(['', '', '', '', '', ''])
   const [adminError, setAdminError] = useState('')
   const [adminLoading, setAdminLoading] = useState(false)
 
+  const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAEGIOMkUoMsNj6yg'
+
+  const renderTurnstile = useCallback(() => {
+    if (!window.turnstile || !turnstileRef.current || !SITE_KEY) return
+    if (turnstileIdRef.current) {
+      window.turnstile.remove(turnstileIdRef.current)
+      turnstileIdRef.current = null
+    }
+    turnstileIdRef.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: SITE_KEY,
+      theme: 'light',
+      callback: (token) => setTurnstileToken(token),
+      'expired-callback': () => setTurnstileToken(''),
+      'error-callback': () => setTurnstileToken(''),
+    })
+  }, [SITE_KEY])
+
+  useEffect(() => {
+    if (window.turnstile) {
+      renderTurnstile()
+    } else {
+      const checkInterval = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(checkInterval)
+          renderTurnstile()
+        }
+      }, 300)
+      return () => clearInterval(checkInterval)
+    }
+    return undefined
+  }, [renderTurnstile])
+
+  useEffect(() => () => {
+    if (turnstileIdRef.current && window.turnstile) {
+      try { window.turnstile.remove(turnstileIdRef.current) } catch { }
+    }
+  }, [])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!email || !password) { setError('Please fill in all fields.'); return }
+    // ── Strict Input Validation ──
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    if (!email || !emailRegex.test(email)) { setError('Please enter a valid email address.'); return }
+    if (!password) { setError('Please enter your password.'); return }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      setError('Password must contain uppercase, lowercase, and a number.')
+      return
+    }
     if (!isLogin && !name) { setError('Please enter your name.'); return }
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
+    if (!isLogin && (name.length < 2 || name.length > 50)) { setError('Name must be 2-50 characters.'); return }
+    if (!isLogin && !/^[a-zA-Z\s'-]+$/.test(name)) { setError('Name can only contain letters, spaces, hyphens, and apostrophes.'); return }
+    if (SITE_KEY && !turnstileToken) { setError('Please complete the security check.'); return }
     setLoading(true)
     try {
+      // Server-side Turnstile verification (canonical siteverify)
+      if (SITE_KEY && turnstileToken) {
+        const verifyRes = await fetch('/api/verify-turnstile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: turnstileToken }),
+        })
+        const verifyJson = await verifyRes.json().catch(() => ({}))
+        if (!verifyRes.ok || !verifyJson.success) {
+          setError('Security verification failed. Please try again.')
+          window.turnstile?.reset()
+          return
+        }
+      }
+
       if (isLogin) {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
         if (signInError) throw signInError
@@ -374,7 +466,8 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
         onLogin({ email, name, plan })
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed')
+      console.error('Auth error:', err)
+      setError('Authentication failed. Please check your credentials and try again.')
     } finally {
       setLoading(false)
     }
@@ -413,8 +506,6 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
       if (!data?.ok) {
         if (data?.error === 'COOLDOWN') {
           setAdminError(`Too many attempts. Try again in ${data.retry_after}s`)
-        } else if (data?.error === 'SESSION_ACTIVE') {
-          setAdminError('An admin session is already active on another device')
         } else {
           setAdminError('Invalid admin code. Try again.')
         }
@@ -427,8 +518,9 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
       setAdminLoading(false)
       onAdminLogin(data)
     } catch (err) {
+      console.error('Admin login error:', err)
       setAdminLoading(false)
-      setAdminError(err.message || 'Verification failed')
+      setAdminError('Verification failed. Please try again.')
     }
   }
 
@@ -496,6 +588,8 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
               <label htmlFor="password" className="block text-[12px] text-foreground font-semibold mb-1.5">Password</label>
               <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className={inputBase} />
             </div>
+
+            <div ref={turnstileRef} className="flex justify-center" />
 
             {!isLogin && (
               <div>
@@ -639,6 +733,8 @@ function CardListItem({ card, onOpen, locked = false }) {
         </div>
         <p className="text-muted-foreground text-[12px] mt-0.5 font-mono tracking-wide">{card.card_number ? maskCardNumber(card.card_number) : (card.last4 ? '•••• •••• •••• ' + card.last4 : '•••• •••• •••• ••••')}</p>
         <div className="flex items-center gap-1.5 mt-1">
+          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${card.tier === 'free' ? 'bg-surface-2 text-muted-foreground' : 'bg-brand-dim text-brand'}`}>{card.tier || 'free'}</span>
+          <span className="text-[11px] text-emerald-600 font-bold">${card.balance_usd ?? 0} USD</span>
           <span className="text-[11px] text-muted-foreground/60 font-medium">{card.bank}</span>
           {card.expiry && <><span className="text-muted-foreground/30 text-[10px]">•</span><span className="text-[11px] text-muted-foreground/60">Exp {card.expiry}</span></>}
         </div>
@@ -689,7 +785,7 @@ function CardDetailModal({ card, flipped, onFlip, onClose, onCopy }) {
         <button
           onClick={() => {
             const text = `Card: ${formatCardNumber(card.card_number)}\nName: ${card.name}\nExpiry: ${card.expiry}\nCVV: ${card.cvv}\nBank: ${card.bank}`
-            navigator.clipboard.writeText(text).catch(() => {})
+            navigator.clipboard.writeText(text).catch(() => { })
             onCopy(text, 'All details')
           }}
           className="mt-5 w-full py-3.5 rounded-2xl font-black text-[14px] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg text-white"
@@ -716,11 +812,27 @@ function CardsPage({ currentUser, onNavigate }) {
   const [claimed, setClaimed] = useState([])
   const [planLimit, setPlanLimit] = useState(3)
   const [loading, setLoading] = useState(true)
+  const [claiming, setClaiming] = useState(false)
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 2500)
   }, [])
+
+  const handleClaimFreeCard = async () => {
+    setClaiming(true)
+    try {
+      const { data, error } = await supabase.rpc('claim_free_card')
+      if (error) throw error
+      showToast('🎉 Free card claimed with random USD balance!')
+      fetchData()
+    } catch (err) {
+      console.error('Claim free card error:', err)
+      showToast('Could not claim free card. Please try again.', 'error')
+    } finally {
+      setClaiming(false)
+    }
+  }
 
   const normalizeCards = (rows) => (rows || []).map((c) => ({
     id: c.id,
@@ -734,7 +846,9 @@ function CardsPage({ currentUser, onNavigate }) {
     expiry: c.expiry,
     cvv: c.cvv,
     is_active: true,
-    unlocked: !!c.unlocked,
+    unlocked: true,
+    tier: c.tier || 'free',
+    balance_usd: c.balance_usd ?? TIER_BALANCES[c.tier || 'free'] ?? 0,
     created_at: c.created_at,
   }))
 
@@ -752,9 +866,9 @@ function CardsPage({ currentUser, onNavigate }) {
       ])
       const overview = overviewRes.data || {}
       const rows = normalizeCards(cardsRes.data)
-      setPlanLimit(overview.card_limit ?? 3)
-      setClaimed(rows.filter((c) => c.unlocked))
-      setAvailable(rows.filter((c) => !c.unlocked))
+      setPlanLimit(overview.card_limit ?? 1)
+      setClaimed(rows)
+      setAvailable([])
     } catch (err) {
       console.error('Fetch error:', err)
       showToast('Could not load cards', 'error')
@@ -836,11 +950,29 @@ function CardsPage({ currentUser, onNavigate }) {
         {!isGuest && (
           <div className="flex items-center justify-between mb-4">
             <p className="text-[12px] text-muted-foreground">
-              <span className="text-foreground font-semibold">{claimed.length}</span> of {planLimit} cards unlocked
+              <span className="text-foreground font-semibold">{claimed.length}</span> virtual card{claimed.length !== 1 ? 's' : ''} active
             </p>
-            {remainingClaims > 0 && visibleAvailable.length > 0 && (
-              <button onClick={() => onNavigate('pricing')} className="text-[11px] text-brand font-semibold hover:underline">Unlock more</button>
-            )}
+            <button onClick={() => onNavigate('pricing')} className="text-[11px] text-brand font-semibold hover:underline">Add a card</button>
+          </div>
+        )}
+
+        {!isGuest && claimed.length === 0 && !loading && (
+          <div className="bg-gradient-to-br from-violet-50 to-pink-50 border border-brand/20 rounded-2xl p-6 text-center mb-4">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-brand flex items-center justify-center mb-3">
+              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0v3.75m0-3.75h5.25" /></svg>
+            </div>
+            <h3 className="font-black text-[16px] text-foreground mb-1">Get Your Free Card</h3>
+            <p className="text-[12px] text-muted-foreground mb-4">Claim a free virtual card with a random USD balance ($1 - $15)</p>
+            <button
+              onClick={handleClaimFreeCard}
+              disabled={claiming}
+              className="w-full py-3 rounded-xl font-bold text-[14px] text-white hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
+              style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)' }}
+            >
+              {claiming
+                ? <span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Claiming...</span>
+                : '🎁 Claim Free Card'}
+            </button>
           </div>
         )}
 
@@ -881,13 +1013,64 @@ function CardsPage({ currentUser, onNavigate }) {
   )
 }
 
-// ─── PRICING PAGE ─────────────────────────────────────────────────────────────
+// ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────────────
 function PricingPage({ currentUser, onNavigate }) {
-  const plans = [
-    { id: 'free', name: 'Free', price: '₹0', period: 'forever', cards: PLAN_LIMITS.free, color: 'border-border', badge: '', features: ['Access to cards', 'All providers', 'Copy card details', 'Basic support'] },
-    { id: 'pro', name: 'Pro', price: '₹99', period: '/month', cards: PLAN_LIMITS.pro, color: 'border-brand ring-2 ring-brand/20', badge: 'Most Popular', features: ['Access to 5 cards', 'All providers', 'Copy all details', 'Category filters', 'Priority support'] },
-    { id: 'max', name: 'Max', price: '₹199', period: '/month', cards: PLAN_LIMITS.max, color: 'border-amber-300', badge: '', features: ['Access to 10 cards', 'All providers', 'Copy all details', 'Category filters', 'Premium support', 'Early access to new cards'] },
-  ]
+  const [selectedPack, setSelectedPack] = useState(null)
+  const [paymentMethod, setPaymentMethod] = useState('inr')
+  const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState(null)
+  const [telegramCard, setTelegramCard] = useState(null)
+  const [telegramLoading, setTelegramLoading] = useState(false)
+
+  // Check URL for telegram_id param (returning from Telegram payment)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tgId = params.get('telegram_id')
+    const plan = params.get('plan')
+    if (tgId) {
+      setTelegramLoading(true)
+      fetch(`${BOT_API_BASE}/api/get-card/${tgId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok) {
+            setTelegramCard(data)
+            showToast(`🎉 ${data.plan} plan activated via Telegram Stars!`)
+          }
+        })
+        .catch(() => { })
+        .finally(() => setTelegramLoading(false))
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
+
+  const showToast = useCallback((msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 2500)
+  }, [])
+
+  const handleSimulatePayment = async () => {
+    if (!selectedPack) return
+    if (!currentUser) { onNavigate('auth'); return }
+    setLoading(true)
+    try {
+      const { data: orderData, error: orderErr } = await supabase.rpc('create_order', { p_pack_id: selectedPack.id })
+      if (orderErr) throw orderErr
+
+      const { data: confirmData, error: confirmErr } = await supabase.rpc('confirm_order', { p_order_id: orderData.order_id, p_gateway: 'upi_mock' })
+      if (confirmErr) throw confirmErr
+
+      showToast(`🎉 Payment Confirmed! Card updated to ${selectedPack.name} Pack with $${selectedPack.balance_usd} USD!`)
+      setSelectedPack(null)
+      setTimeout(() => onNavigate('cards'), 1200)
+    } catch (err) {
+      console.error('Payment error:', err)
+      showToast('Payment could not be completed. Please try again.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
@@ -895,42 +1078,130 @@ function PricingPage({ currentUser, onNavigate }) {
           <button onClick={() => onNavigate('landing')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
           </button>
-          <h1 className="font-bold text-foreground">Plans & Pricing</h1>
+          <h1 className="font-bold text-foreground">Top-Up Balance Packs</h1>
         </div>
       </header>
-      <main className="flex-1 max-w-md mx-auto w-full px-4 py-6 pb-24">
-        <p className="text-muted-foreground text-[14px] mb-6 leading-relaxed">Choose a plan that fits your needs. Upgrade or downgrade anytime.</p>
-        <div className="space-y-4">
-          {plans.map((p) => (
-            <div key={p.id} className={`rounded-2xl border ${p.color} bg-white p-5 relative`}>
-              {p.badge && <div className="absolute -top-3 left-5 bg-brand text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wide">{p.badge}</div>}
-              {currentUser?.plan === p.id && <div className="absolute -top-3 right-5 bg-green-500 text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wide">Current</div>}
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="font-bold text-[18px] text-foreground">{p.name}</p>
-                  <p className="text-muted-foreground text-[12px]">{p.cards} cards/month</p>
+
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-5 pb-24">
+        <p className="text-muted-foreground text-[13px] mb-5 leading-relaxed text-center">
+          Choose a pack to assign a virtual card loaded with your chosen **USD Balance ($)**!
+        </p>
+
+        <div className="space-y-3.5">
+          {V2_PACKS.map((p) => (
+            <div key={p.id} className="bg-white border border-border rounded-2xl p-4 flex items-center justify-between shadow-sm hover:border-brand/50 transition-all">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-black text-[16px] text-foreground">{p.name}</p>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-dim text-brand uppercase">{p.badge}</span>
                 </div>
-                <div className="text-right">
-                  <span className="font-black text-[24px] text-foreground">{p.price}</span>
-                  <span className="text-muted-foreground text-[12px]">{p.period}</span>
-                </div>
+                <p className="text-[20px] font-black text-brand mt-1">${p.balance_usd} USD <span className="text-[11px] text-muted-foreground font-medium">Card Balance</span></p>
               </div>
-              <div className="space-y-2 mb-4">
-                {p.features.map((f) => (
-                  <div key={f} className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                    <span className="text-[13px] text-foreground">{f}</span>
-                  </div>
-                ))}
+
+              <div className="text-right space-y-1.5">
+                <p className="text-[18px] font-black text-foreground">₹{p.price_inr}</p>
+                <button
+                  onClick={() => { setSelectedPack(p); setPaymentMethod('inr') }}
+                  className="px-3.5 py-1.5 rounded-xl bg-brand text-white font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full"
+                >
+                  Buy ₹
+                </button>
+                <button
+                  onClick={() => {
+                    setPaymentMethod('stars')
+                    window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#2aabee] text-white font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
+                >
+                  ⭐ {p.stars} Buy
+                </button>
               </div>
-              <button onClick={() => onNavigate(currentUser ? 'account' : 'auth')}
-                className={`w-full py-3 rounded-xl font-bold text-[14px] transition-all ${p.id === 'pro' ? 'bg-brand text-white hover:opacity-90 shadow-sm' : p.id === 'max' ? 'bg-amber-500 text-white hover:opacity-90 shadow-sm' : 'bg-surface border border-border text-foreground hover:border-brand/40'}`}>
-                {currentUser?.plan === p.id ? 'Current Plan' : currentUser ? 'Switch to ' + p.name : 'Get ' + p.name}
-              </button>
             </div>
           ))}
         </div>
       </main>
+
+      {/* Payment Modal */}
+      {selectedPack && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="font-black text-[16px] text-foreground">Confirm Purchase</h3>
+                <p className="text-[12px] text-muted-foreground">{selectedPack.name} Pack</p>
+              </div>
+              <button onClick={() => setSelectedPack(null)} className="p-1 rounded-full text-muted-foreground hover:bg-surface">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="bg-surface rounded-2xl p-4 space-y-2 border border-border text-center">
+              <p className="text-[12px] font-semibold text-muted-foreground">Amount to Pay</p>
+              <p className="text-[28px] font-black text-foreground">₹{selectedPack.price_inr} INR</p>
+              <div className="inline-block bg-emerald-100 text-emerald-700 font-bold text-[12px] px-3 py-1 rounded-full mt-1">
+                Adds ${selectedPack.balance_usd} USD Card Balance
+              </div>
+            </div>
+
+            <div className="border border-dashed border-border rounded-2xl p-4 text-center space-y-1">
+              <p className="text-[11px] font-bold uppercase text-muted-foreground">Simulated UPI Checkout</p>
+              <p className="font-mono text-[12px] text-brand font-bold">virtualcards@upi</p>
+            </div>
+
+            <button
+              onClick={handleSimulatePayment}
+              disabled={loading}
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-[14px] hover:bg-emerald-700 transition-colors shadow-lg disabled:opacity-50"
+            >
+              {loading ? 'Processing Payment...' : `Complete Payment (₹${selectedPack.price_inr})`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Telegram Stars success card modal */}
+      {telegramCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+                <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+              </div>
+              <h3 className="font-black text-[18px] text-foreground">Payment Successful! 🎉</h3>
+              <p className="text-[12px] text-muted-foreground mt-1">{telegramCard.plan} plan activated via Telegram Stars</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-5 text-white relative overflow-hidden">
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.14) 0%,transparent 50%)' }} />
+              <p className="text-[10px] text-white/60 uppercase tracking-widest font-bold relative z-10">VCardz — Temp Card</p>
+              <p className="font-mono text-white text-[18px] tracking-[0.15em] font-bold mt-4 relative z-10">{telegramCard.temp_card || '•••• •••• •••• ••••'}</p>
+              <div className="flex items-center justify-between mt-5 relative z-10">
+                <div>
+                  <p className="text-[8px] text-white/40 uppercase tracking-widest">Plan</p>
+                  <p className="text-[13px] text-white font-bold">{telegramCard.plan}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] text-white/40 uppercase tracking-widest">Status</p>
+                  <p className="text-[13px] text-emerald-300 font-bold">{telegramCard.status} ✅</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] text-white/40 uppercase tracking-widest">Stars</p>
+                  <p className="text-[13px] text-white font-bold">{telegramCard.stars_paid} ⭐</p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setTelegramCard(null)}
+              className="w-full py-3 rounded-xl bg-brand text-white font-bold text-[14px] hover:opacity-90 transition-opacity"
+            >
+              View My Cards
+            </button>
+          </div>
+        </div>
+      )}
+
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
       <BottomNav view="pricing" isLoggedIn={!!currentUser} onNavigate={onNavigate} />
     </div>
   )
@@ -944,7 +1215,8 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
   const email = currentUser?.email || ''
   const planName = currentUser?.plan || 'free'
   const initials = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'G'
-  const planColors = { free: 'bg-surface-2 text-muted-foreground border-border', pro: 'bg-brand-dim text-brand border-brand/20', max: 'bg-amber-100 text-amber-600 border-amber-200' }
+  const currentPack = V2_PACKS.find((p) => p.id === planName)
+  const planColors = { free: 'bg-surface-2 text-muted-foreground border-border', spark: 'bg-brand-dim text-brand border-brand/20', orbit: 'bg-brand-dim text-brand border-brand/20', nova: 'bg-brand-dim text-brand border-brand/20', galaxy: 'bg-amber-100 text-amber-600 border-amber-200', cosmos: 'bg-amber-100 text-amber-600 border-amber-200', infinity: 'bg-amber-100 text-amber-600 border-amber-200' }
 
   const handleAdmin = async () => {
     if (adminCodeInput.length !== 6) return
@@ -994,7 +1266,7 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
             <div>
               <p className="font-bold text-[13px]">Browse Cards</p>
-              <p className="text-[11px] text-white/70">{PLAN_LIMITS[planName]} cards</p>
+              <p className="text-[11px] text-white/70">{currentPack ? `$${currentPack.balance_usd} USD balance` : 'Free card'}</p>
             </div>
           </button>
           <button onClick={() => onNavigate('pricing')} className="bg-surface border border-border rounded-2xl p-4 flex flex-col items-start gap-2 hover:border-brand/40 transition-colors">
@@ -1012,8 +1284,8 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
             {[
               { label: 'Full Name', value: name },
               { label: 'Email', value: email },
-              { label: 'Current Plan', value: planName.charAt(0).toUpperCase() + planName.slice(1) },
-              { label: 'Card Limit', value: `${PLAN_LIMITS[planName]} cards/month` },
+              { label: 'Current Pack', value: currentPack ? `${currentPack.name} (₹${currentPack.price_inr})` : 'Free' },
+              { label: 'Card Balance', value: currentPack ? `$${currentPack.balance_usd} USD` : '$0 USD' },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between px-4 py-3.5">
                 <p className="text-[13px] text-muted-foreground">{item.label}</p>
@@ -1074,8 +1346,17 @@ function AdminPanelPage({ onNavigate }) {
   const [dataLoading, setDataLoading] = useState(true)
   const [toast, setToast] = useState(null)
 
-  const EMPTY_FORM = { card_number: '', name: '', expiry: '', cvv: '', provider: 'Visa', label: '', is_active: true }
+  const EMPTY_FORM = { card_number: '', name: '', expiry: '', cvv: '', provider: 'Visa', label: '', is_active: true, tier: 'free', balance_usd: 0 }
   const PLAN_TIERS = ['Free', 'Pro', 'Max']
+  const ALL_TIERS = [
+    { id: 'free', label: 'Free (₹0)' },
+    { id: 'spark', label: 'Spark ($15)' },
+    { id: 'orbit', label: 'Orbit ($26)' },
+    { id: 'nova', label: 'Nova ($32)' },
+    { id: 'galaxy', label: 'Galaxy ($49)' },
+    { id: 'cosmos', label: 'Cosmos ($67)' },
+    { id: 'infinity', label: 'Infinity ($82)' },
+  ]
   const [showCardModal, setShowCardModal] = useState(false)
   const [editingCard, setEditingCard] = useState(null)
   const [formData, setFormData] = useState(EMPTY_FORM)
@@ -1084,11 +1365,13 @@ function AdminPanelPage({ onNavigate }) {
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [bulkPreview, setBulkPreview] = useState([])
+  const [bulkTier, setBulkTier] = useState('free')
+  const [assigningFreeCard, setAssigningFreeCard] = useState(null)
 
   const showToast = useCallback((msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500) }, [])
 
-  const RANDOM_NAMES = ['RAHUL SHARMA','PRIYA SINGH','AMIT VERMA','SNEHA GUPTA','VIKRAM NAIR','NEHA REDDY','ROHAN MISHRA','KAVYA PATEL','ANKIT JHA','POOJA IYER','SURESH KUMAR','MEERA JHA']
-  const RANDOM_PROVIDERS = ['Visa','Mastercard','Amex','Discover','RuPay']
+  const RANDOM_NAMES = ['RAHUL SHARMA', 'PRIYA SINGH', 'AMIT VERMA', 'SNEHA GUPTA', 'VIKRAM NAIR', 'NEHA REDDY', 'ROHAN MISHRA', 'KAVYA PATEL', 'ANKIT JHA', 'POOJA IYER', 'SURESH KUMAR', 'MEERA JHA']
+  const RANDOM_PROVIDERS = ['Visa', 'Mastercard', 'Amex', 'Discover', 'RuPay']
 
   const parseBulkText = (text) => {
     const lines = text.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 1000)
@@ -1127,6 +1410,8 @@ function AdminPanelPage({ onNavigate }) {
     notes: c.notes,
     is_active: c.is_active,
     created_at: c.created_at,
+    tier: c.tier || 'free',
+    balance_usd: c.balance_usd ?? TIER_BALANCES[c.tier || 'free'] ?? 0,
   })
 
   const fetchAll = async () => {
@@ -1170,6 +1455,8 @@ function AdminPanelPage({ onNavigate }) {
       p_provider: formData.provider,
       p_is_active: formData.is_active,
       p_label: formData.label || null,
+      p_tier: formData.tier || 'free',
+      p_balance_usd: Number(formData.balance_usd) || TIER_BALANCES[formData.tier || 'free'] || 0,
     }
     try {
       const { error } = await supabase.rpc('admin_card_save', payload)
@@ -1255,13 +1542,37 @@ function AdminPanelPage({ onNavigate }) {
         p_provider: RANDOM_PROVIDERS[Math.floor(Math.random() * RANDOM_PROVIDERS.length)],
         p_is_active: true,
         p_label: 'Other',
+        p_tier: bulkTier,
+        p_balance_usd: TIER_BALANCES[bulkTier] ?? 0,
       })
       if (!error) ok++
       else { showToast('Bulk add failed', 'error'); break }
     }
-    showToast(`${ok} cards added`)
+    showToast(`${ok} cards added as '${bulkTier}' tier`)
     setShowBulkModal(false); setBulkText(''); setBulkPreview([])
     fetchAll()
+  }
+
+  const handleAssignFreeCard = async (userId, userEmail) => {
+    setAssigningFreeCard(userId)
+    try {
+      const { error } = await supabase.rpc('admin_assign_free_card', { p_token: token, p_user_id: userId })
+      if (error) throw error
+      showToast(`✅ Free card assigned to ${userEmail || userId}`)
+      fetchAll()
+    } catch (err) {
+      // Fallback: try claim_free_card as admin
+      try {
+        const { error: e2 } = await supabase.rpc('claim_free_card', { p_user_id: userId })
+        if (e2) throw e2
+        showToast(`✅ Free card assigned to ${userEmail || userId}`)
+        fetchAll()
+      } catch (err2) {
+        showToast('Could not assign free card: ' + (err2.message || err.message), 'error')
+      }
+    } finally {
+      setAssigningFreeCard(null)
+    }
   }
 
   const filteredCards = cards.filter((c) => !cardSearch || c.name?.toLowerCase().includes(cardSearch.toLowerCase()) || c.card_number?.includes(cardSearch) || c.provider?.toLowerCase().includes(cardSearch.toLowerCase()))
@@ -1308,7 +1619,7 @@ function AdminPanelPage({ onNavigate }) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             View User Side
           </button>
-          <button onClick={async () => { try { await supabase.rpc('admin_logout', { p_token: token }) } catch {} setAdminToken(null); onNavigate('landing') }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-all">
+          <button onClick={async () => { try { await supabase.rpc('admin_logout', { p_token: token }) } catch { } setAdminToken(null); onNavigate('landing') }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-all">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
             Exit Admin
           </button>
@@ -1429,7 +1740,7 @@ function AdminPanelPage({ onNavigate }) {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              <button onClick={() => { setEditingCard(card); setFormData({ card_number: card.card_number, name: card.name, expiry: card.expiry, cvv: card.cvv, label: card.label, provider: card.provider, is_active: card.is_active }); setShowCardModal(true) }} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand-dim transition-colors" title="Edit">
+                              <button onClick={() => { setEditingCard(card); setFormData({ card_number: card.card_number, name: card.name, expiry: card.expiry, cvv: card.cvv, label: card.label, provider: card.provider, is_active: card.is_active, tier: card.tier || 'free', balance_usd: card.balance_usd ?? TIER_BALANCES[card.tier || 'free'] ?? 0 }); setShowCardModal(true) }} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand-dim transition-colors" title="Edit">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                               </button>
                               <button onClick={() => setDeleteTarget(card)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
@@ -1485,6 +1796,14 @@ function AdminPanelPage({ onNavigate }) {
                               <select value={user.plan || 'Free'} onChange={(e) => changePlan(user.id, e.target.value)} className="bg-surface border border-border rounded-lg px-2 py-1 text-[12px] text-foreground focus:outline-none focus:border-brand/50">
                                 {PLAN_TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
                               </select>
+                              <button
+                                onClick={() => handleAssignFreeCard(user.id, user.email)}
+                                disabled={assigningFreeCard === user.id}
+                                title="Assign a free card to this user"
+                                className="flex items-center gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-bold text-[11px] px-2.5 py-1 rounded-full transition-colors disabled:opacity-40 whitespace-nowrap"
+                              >
+                                {assigningFreeCard === user.id ? '...' : '+ Free Card'}
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1527,7 +1846,7 @@ function AdminPanelPage({ onNavigate }) {
                   {adminCodes.map((c) => (
                     <div key={c.id} className="flex items-center gap-3 py-3">
                       {c.is_current && <span className="font-mono text-[13px] font-bold text-brand">●</span>}
-                      <span className={`text-[13px] font-semibold ${c.is_active ? 'text-foreground' : 'text-muted-foreground/50 line-through'}`}>{c.label || `Admin #${c.id.slice(0,4)}`}</span>
+                      <span className={`text-[13px] font-semibold ${c.is_active ? 'text-foreground' : 'text-muted-foreground/50 line-through'}`}>{c.label || `Admin #${c.id.slice(0, 4)}`}</span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>{c.is_active ? 'Active' : 'Inactive'}</span>
                       <span className="text-[11px] text-muted-foreground/60">{c.created_at ? 'created ' + new Date(c.created_at).toLocaleDateString() : ''}</span>
                       <div className="flex-1" />
@@ -1574,11 +1893,24 @@ function AdminPanelPage({ onNavigate }) {
                     {['Visa', 'Mastercard', 'Amex', 'Discover', 'RuPay'].map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Tier Pool</label>
+                  <select value={formData.tier} onChange={(e) => setFormData((f) => ({ ...f, tier: e.target.value, balance_usd: TIER_BALANCES[e.target.value] ?? 0 }))} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
+                    {ALL_TIERS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                </div>
                 <div className="col-span-2">
                   <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Label (Category)</label>
                   <select value={formData.label} onChange={(e) => setFormData((f) => ({ ...f, label: e.target.value }))} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
                     {['Netflix', 'Amazon', 'Spotify', 'YouTube', 'Other'].map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Balance (USD)</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input type="number" min="0" value={formData.balance_usd} onChange={(e) => setFormData((f) => ({ ...f, balance_usd: Number(e.target.value) }))} className="flex-1 bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono focus:outline-none focus:border-brand/50" />
+                    <span className="text-[12px] font-bold text-emerald-600 bg-emerald-50 px-3 py-2.5 rounded-xl border border-emerald-200">${formData.balance_usd} USD</span>
+                  </div>
                 </div>
               </div>
               <label className="flex items-center gap-2.5 text-[13px] text-foreground font-medium pt-1">
@@ -1603,7 +1935,21 @@ function AdminPanelPage({ onNavigate }) {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <p className="text-[12px] text-muted-foreground mb-4">One card per line: <span className="font-mono text-brand">cardnumber MM/YY CVV</span> (e.g. <span className="font-mono">4111111111111111 12/29 123</span>). Up to 1000 per batch.</p>
+            <p className="text-[12px] text-muted-foreground mb-3">One card per line: <span className="font-mono text-brand">cardnumber MM/YY CVV</span> (e.g. <span className="font-mono">4111111111111111 12/29 123</span>). Up to 1000 per batch.</p>
+            <div className="mb-3">
+              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Tier Pool for All Cards</label>
+              <select value={bulkTier} onChange={(e) => setBulkTier(e.target.value)} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
+                {[
+                  { id: 'free', label: 'Free (₹0 / $0)' },
+                  { id: 'spark', label: 'Spark (₹299 / $15)' },
+                  { id: 'orbit', label: 'Orbit (₹499 / $26)' },
+                  { id: 'nova', label: 'Nova (₹799 / $32)' },
+                  { id: 'galaxy', label: 'Galaxy (₹999 / $49)' },
+                  { id: 'cosmos', label: 'Cosmos (₹1299 / $67)' },
+                  { id: 'infinity', label: 'Infinity (₹1599 / $82)' },
+                ].map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
             <textarea value={bulkText} onChange={(e) => { setBulkText(e.target.value); setBulkPreview(parseBulkText(e.target.value)) }} placeholder={'4111111111111111 12/29 123\n4222222222222222 01/30 456\n...'} className="w-full h-40 bg-surface border border-border rounded-xl px-3 py-2.5 text-[12px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 resize-none" />
             <div className="flex items-center justify-between mt-3 text-[12px] text-muted-foreground">
               <span><span className="font-bold text-brand">{bulkPreview.length}</span> valid cards parsed</span>
@@ -1651,7 +1997,7 @@ function App() {
     try {
       const saved = sessionStorage.getItem('vcz_user')
       if (saved) setCurrentUser(JSON.parse(saved))
-    } catch {}
+    } catch { }
     setBooting(false)
   }, [])
 
@@ -1659,7 +2005,7 @@ function App() {
 
   const handleLogin = useCallback((user) => {
     setCurrentUser(user)
-    try { user?.isGuest ? sessionStorage.removeItem('vcz_user') : sessionStorage.setItem('vcz_user', JSON.stringify(user)) } catch {}
+    try { user?.isGuest ? sessionStorage.removeItem('vcz_user') : sessionStorage.setItem('vcz_user', JSON.stringify(user)) } catch { }
     setView('cards')
   }, [])
 
@@ -1676,7 +2022,7 @@ function App() {
 
   const handleLogout = useCallback(() => {
     setCurrentUser(null)
-    try { sessionStorage.removeItem('vcz_user') } catch {}
+    try { sessionStorage.removeItem('vcz_user') } catch { }
     setView('landing')
   }, [])
 
