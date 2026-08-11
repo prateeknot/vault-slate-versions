@@ -888,11 +888,17 @@ function CardsPage({ currentUser, onNavigate }) {
     try {
       const { data, error } = await supabase.rpc('claim_free_card')
       if (error) throw error
+      if (!data || data.length === 0) throw new Error('NO_FREE_CARDS')
       showToast('🎉 Free card claimed with random USD balance!')
       fetchData()
     } catch (err) {
       console.error('Claim free card error:', err)
-      showToast('Could not claim free card. Please try again.', 'error')
+      const msg = String(err.message || err)
+      if (msg.includes('NO_FREE_CARDS')) {
+        showToast('No free cards left right now. Upgrade your plan to get a card instantly.', 'error')
+      } else {
+        showToast('Could not claim free card. Please try again.', 'error')
+      }
     } finally {
       setClaiming(false)
     }
@@ -1702,14 +1708,13 @@ function AdminPanelPage({ onNavigate }) {
       showToast(`✅ Free card assigned to ${userEmail || userId}`)
       fetchAll()
     } catch (err) {
-      // Fallback: try claim_free_card as admin
-      try {
-        const { error: e2 } = await supabase.rpc('claim_free_card', { p_user_id: userId })
-        if (e2) throw e2
-        showToast(`✅ Free card assigned to ${userEmail || userId}`)
-        fetchAll()
-      } catch (err2) {
-        showToast('Could not assign free card: ' + (err2.message || err.message), 'error')
+      const msg = String(err.message || err)
+      if (msg.includes('USER_ALREADY_HAS_FREE_CARD')) {
+        showToast('User already has a free card', 'error')
+      } else if (msg.includes('NO_FREE_CARDS')) {
+        showToast('No unassigned free cards left in the pool', 'error')
+      } else {
+        showToast('Could not assign free card: ' + msg, 'error')
       }
     } finally {
       setAssigningFreeCard(null)
