@@ -1471,6 +1471,19 @@ function AdminPanelPage({ onNavigate }) {
   const [bulkTier, setBulkTier] = useState('free')
   const [assigningFreeCard, setAssigningFreeCard] = useState(null)
 
+  const [orders, setOrders] = useState([])
+  const [packs, setPacks] = useState([])
+  const [inventory, setInventory] = useState([])
+  const [orderFilter, setOrderFilter] = useState('all')
+  const [orderSearch, setOrderSearch] = useState('')
+  const [sessionExpired, setSessionExpired] = useState(false)
+  const [userCards, setUserCards] = useState([])
+  const [userCardsUser, setUserCardsUser] = useState(null)
+  const [assignTierFor, setAssignTierFor] = useState(null)
+  const [packEditing, setPackEditing] = useState(null)
+  const [editingPackForm, setEditingPackForm] = useState({})
+  const [ordersLoading, setOrdersLoading] = useState(false)
+
   const showToast = useCallback((msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500) }, [])
 
   const RANDOM_NAMES = ['RAHUL SHARMA', 'PRIYA SINGH', 'AMIT VERMA', 'SNEHA GUPTA', 'VIKRAM NAIR', 'NEHA REDDY', 'ROHAN MISHRA', 'KAVYA PATEL', 'ANKIT JHA', 'POOJA IYER', 'SURESH KUMAR', 'MEERA JHA']
@@ -1521,13 +1534,15 @@ function AdminPanelPage({ onNavigate }) {
     if (!token) { setDataLoading(false); return }
     setDataLoading(true)
     try {
-      const [cardsRes, plansRes, codesRes, statsRes, usersRes] = await Promise.all([
+      const [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes] = await Promise.all([
         supabase.rpc('admin_cards', { p_token: token }),
         supabase.rpc('admin_limits', { p_token: token }),
         supabase.rpc('admin_codes_list', { p_token: token }),
         supabase.rpc('admin_stats', { p_token: token }),
         supabase.rpc('admin_users', { p_token: token }),
+        supabase.rpc('admin_packs', { p_token: token }).catch(() => ({ data: null, error: { message: 'missing' } })),
       ])
+      if (cardsRes.error?.message === 'SESSION_INVALID' || statsRes.error?.message === 'SESSION_INVALID') { setSessionExpired(true); return }
       if (cardsRes.data) setCards(cardsRes.data.map(normalizeCard))
       if (plansRes.data) {
         const limits = {}
@@ -1537,14 +1552,37 @@ function AdminPanelPage({ onNavigate }) {
       if (codesRes.data) setAdminCodes(codesRes.data)
       if (statsRes.data) setTotalUsers(statsRes.data.total_users ?? 0)
       if (usersRes.data) setUsers(usersRes.data.map((u) => ({ ...u, name: u.display_name, plan: u.plan_type })))
+      if (packsRes.data) setPacks(packsRes.data)
     } catch (err) {
+      if (String(err?.message).includes('SESSION_INVALID')) { setSessionExpired(true); return }
       showToast('Failed to load admin data', 'error')
     } finally {
       setDataLoading(false)
     }
   }
 
-  useEffect(() => { fetchAll() }, [])
+  const fetchOrders = async () => {
+    if (!token) return
+    setOrdersLoading(true)
+    try {
+      const { data, error } = await supabase.rpc('admin_orders_list', { p_token: token })
+      if (error) {
+        if (String(error.message).includes('SESSION_INVALID')) setSessionExpired(true)
+        return
+      }
+      setOrders(data || [])
+    } catch { } finally { setOrdersLoading(false) }
+  }
+
+  const fetchInventory = async () => {
+    if (!token) return
+    try {
+      const { data } = await supabase.rpc('admin_inventory', { p_token: token })
+      if (data) setInventory(data)
+    } catch { }
+  }
+
+  useEffect(() => { fetchAll(); fetchOrders(); fetchInventory() }, [])
 
   const handleSaveCard = async () => {
     if (!formData.card_number || !formData.name || !formData.expiry || !formData.cvv) { showToast('Fill all required fields', 'error'); return }
@@ -1678,6 +1716,123 @@ function AdminPanelPage({ onNavigate }) {
     }
   }
 
+  const setOrderStatus = async (orderId, status) => {
+    try {
+      const { error } = await supabase.rpc('admin_order_set_status', { p_token: token, p_order_id: orderId, p_status: status })
+      if (error) throw error
+      showToast(`Order marked ${status}`)
+      fetchOrders()
+      fetchInventory()
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  const openPackEdit = (pack) => {
+    setPackEditing(pack.id)
+    setEditingPackForm({ price_inr: pack.price_inr, balance_usd: Number(pack.balance_usd), sort_order: pack.sort_order, is_active: !!pack.is_active })
+  }
+
+  const savePack = async (packId) => {
+    try {
+      const { error } = await supabase.rpc('admin_pack_set', {
+        p_token: token,
+        p_id: packId,
+        p_price_inr: Number(editingPackForm.price_inr) || 0,
+        p_balance_usd: Number(editingPackForm.balance_usd) || 0,
+        p_is_active: !!editingPackForm.is_active,
+        p_sort_order: Number(editingPackForm.sort_order) || 0,
+      })
+      if (error) throw error
+      showToast('Pack updated')
+      setPackEditing(null)
+      fetchAll()
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  const togglePackActive = async (pack) => {
+    try {
+      const { error } = await supabase.rpc('admin_pack_set', {
+        p_token: token,
+        p_id: pack.id,
+        p_price_inr: pack.price_inr,
+        p_balance_usd: Number(pack.balance_usd),
+        p_is_active: !pack.is_active,
+        p_sort_order: pack.sort_order,
+      })
+      if (error) throw error
+      showToast(pack.is_active ? 'Pack disabled' : 'Pack enabled')
+      fetchAll()
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  const changeUserPlan = async (userId, newPlan) => {
+    try {
+      const { error } = await supabase.rpc('admin_set_user_plan', { p_token: token, p_user_id: userId, p_plan: newPlan })
+      if (error) throw error
+      showToast(`Plan updated to ${newPlan}`)
+      fetchAll()
+    } catch (err) { showToast('Plan update failed: ' + err.message, 'error') }
+  }
+
+  const toggleUserStatus = async (user) => {
+    try {
+      const { data, error } = await supabase.rpc('admin_toggle_user_status', { p_token: token, p_user_id: user.id })
+      if (error) throw error
+      showToast(data?.active ? 'User activated' : 'User suspended')
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_active: !!data?.active } : u)))
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  const viewUserCards = async (user) => {
+    setUserCardsUser(user)
+    setUserCards([])
+    try {
+      const { data, error } = await supabase.rpc('admin_user_cards', { p_token: token, p_user_id: user.id })
+      if (error) throw error
+      setUserCards(data || [])
+    } catch (err) { showToast('Failed to load cards: ' + err.message, 'error') }
+  }
+
+  const removeUserCard = async (userCardId) => {
+    try {
+      const { error } = await supabase.rpc('admin_remove_user_card', { p_token: token, p_user_card_id: userCardId })
+      if (error) throw error
+      showToast('Card removed from user')
+      if (userCardsUser) viewUserCards(userCardsUser)
+      fetchInventory()
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  const assignTierCard = async (tier) => {
+    if (!userCardsUser || !tier) return
+    try {
+      const { error } = await supabase.rpc('admin_assign_card', { p_token: token, p_user_id: userCardsUser.id, p_tier: tier })
+      if (error) throw error
+      showToast(`Assigned ${tier} card`)
+      setAssignTierFor(null)
+      viewUserCards(userCardsUser)
+      fetchInventory()
+      fetchAll()
+    } catch (err) { showToast('Failed: ' + (err.message === 'NO_CARD_AVAILABLE' ? 'no card of that tier left' : err.message), 'error') }
+  }
+
+  const downloadCSV = (filename, rows) => {
+    if (!rows.length) { showToast('Nothing to export', 'info'); return }
+    const headers = Object.keys(rows[0])
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => esc(r[h])).join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 100)
+  }
+
+  const exportCards = () => downloadCSV('vcardz-cards.csv', cards.map((c) => ({ id: c.id, card_number: c.card_number, cardholder_name: c.name, provider: c.provider, tier: c.tier, balance_usd: c.balance_usd, expiry: c.expiry, cvv: c.cvv, status: c.is_active ? 'active' : 'inactive', created_at: c.created_at })))
+  const exportUsers = () => downloadCSV('vcardz-users.csv', users.map((u) => ({ id: u.id, email: u.email, name: u.name, plan: u.plan, status: u.is_active === false ? 'suspended' : 'active', created_at: u.created_at })))
+  const exportOrders = () => downloadCSV('vcardz-orders.csv', orders.map((o) => ({ id: o.id, email: o.user_email, name: o.display_name, pack: o.pack_name, amount_inr: o.amount_inr, status: o.status, gateway: o.gateway, gateway_ref: o.gateway_ref, created_at: o.created_at, paid_at: o.paid_at })))
+
   const filteredCards = cards.filter((c) => !cardSearch || c.name?.toLowerCase().includes(cardSearch.toLowerCase()) || c.card_number?.includes(cardSearch) || c.provider?.toLowerCase().includes(cardSearch.toLowerCase()))
   const filteredUsers = users.filter((u) => !userSearch || (u.display_name || u.email || '').toLowerCase().includes(userSearch.toLowerCase()) || (u.email || '').toLowerCase().includes(userSearch.toLowerCase()))
 
@@ -1689,12 +1844,35 @@ function AdminPanelPage({ onNavigate }) {
     planDist: { free: 0, pro: 0, max: 0 },
   }
 
+  const availableCards = inventory.reduce((s, i) => s + (i.available || 0), 0)
+  const paidRevenue = orders.filter((o) => o.status === 'paid').reduce((s, o) => s + (o.amount_inr || 0), 0)
+  const pendingOrders = orders.filter((o) => o.status === 'pending').length
+  const totalAssigned = inventory.reduce((s, i) => s + (i.assigned || 0), 0)
+  const lowStockTiers = inventory.filter((i) => i.available < 3)
+
   const sidebarItems = [
     { id: 'overview', label: 'Overview', icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' },
     { id: 'cards', label: 'Manage Cards', icon: 'M2.273 5.625A4.483 4.483 0 015.25 4.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 3H5.25a3 3 0 00-2.977 2.625zM2.273 8.625A4.483 4.483 0 015.25 7.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 6H5.25a3 3 0 00-2.977 2.625zM5.25 9a3 3 0 00-3 3v6a3 3 0 003 3h13.5a3 3 0 003-3v-6a3 3 0 00-3-3H5.25zm6.75 8.25a2.25 2.25 0 110-4.5 2.25 2.25 0 010 4.5z' },
     { id: 'users', label: 'Manage Users', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
+    { id: 'orders', label: 'Orders', icon: 'M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z' },
+    { id: 'packs', label: 'Packs', icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z' },
     { id: 'settings', label: 'Settings', icon: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   ]
+
+  if (sessionExpired) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="bg-white border border-border rounded-2xl p-8 max-w-sm w-full text-center">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <h2 className="font-bold text-[17px] text-foreground mb-1">Session expired</h2>
+          <p className="text-[13px] text-muted-foreground mb-5">Your admin session ran out. Log in again to continue.</p>
+          <button onClick={() => onNavigate('auth')} className="w-full bg-brand text-white text-[13px] font-bold py-2.5 rounded-xl hover:opacity-90 transition-opacity">Back to login</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -1736,6 +1914,10 @@ function AdminPanelPage({ onNavigate }) {
           </div>
           {activeTab === 'cards' && (
             <div className="flex items-center gap-2">
+              <button onClick={exportCards} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors">
+                <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                Export
+              </button>
               <button onClick={() => setShowBulkModal(true)} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors">
                 <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V3" /></svg>
                 Bulk Add
@@ -1771,9 +1953,9 @@ function AdminPanelPage({ onNavigate }) {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: 'Total Cards', value: stats.totalCards, sub: `${stats.activeCards} active`, color: 'text-brand', bg: 'bg-brand-dim' },
+                  { label: 'Available', value: inventory.length ? availableCards : '—', sub: inventory.length ? `${totalAssigned} assigned` : 'load inventory', color: 'text-emerald-600', bg: 'bg-emerald-50' },
                   { label: 'Total Users', value: stats.totalUsers, sub: 'registered', color: 'text-blue-600', bg: 'bg-blue-50' },
-                  { label: 'Active Cards', value: stats.activeCards, sub: 'visible', color: 'text-brand', bg: 'bg-brand-dim' },
-                  { label: 'Admin Codes', value: adminCodes.length, sub: 'access codes', color: 'text-amber-600', bg: 'bg-amber-50' },
+                  { label: 'Revenue (₹)', value: orders.length ? paidRevenue.toLocaleString('en-IN') : '—', sub: `${pendingOrders} pending`, color: 'text-amber-600', bg: 'bg-amber-50' },
                 ].map((s) => (
                   <div key={s.label} className="bg-white border border-border rounded-2xl p-5">
                     <div className={`w-8 h-8 rounded-xl ${s.bg} flex items-center justify-center mb-3`}><span className={`text-[10px] font-black ${s.color}`}>#</span></div>
@@ -1783,6 +1965,33 @@ function AdminPanelPage({ onNavigate }) {
                   </div>
                 ))}
               </div>
+
+              {inventory.length > 0 && (
+                <div className="bg-white border border-border rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                    <h3 className="font-bold text-[14px] text-foreground">Card Pool by Tier</h3>
+                    {lowStockTiers.length > 0 && <span className="text-[11px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full">{lowStockTiers.map((t) => t.tier).join(', ')} low!</span>}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead><tr className="border-b border-border bg-surface">{['Tier', 'Total', 'Active', 'Assigned', 'Available'].map((h) => <th key={h} className="text-left px-4 py-2.5 text-[11px] uppercase tracking-widest text-muted-foreground font-bold">{h}</th>)}</tr></thead>
+                      <tbody className="divide-y divide-border">
+                        {inventory.map((i) => (
+                          <tr key={i.tier} className="hover:bg-surface/50 transition-colors">
+                            <td className="px-4 py-2.5 text-[13px] font-semibold text-foreground capitalize">{i.tier}</td>
+                            <td className="px-4 py-2.5 text-[12px] text-muted-foreground">{i.total}</td>
+                            <td className="px-4 py-2.5 text-[12px] text-muted-foreground">{i.active}</td>
+                            <td className="px-4 py-2.5 text-[12px] text-muted-foreground">{i.assigned}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`text-[12px] font-bold px-2.5 py-0.5 rounded-full ${i.available < 3 ? 'bg-red-100 text-red-600' : i.available === 0 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-700'}`}>{i.available}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-white border border-border rounded-2xl overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -1807,6 +2016,26 @@ function AdminPanelPage({ onNavigate }) {
                   ))}
                 </div>
               </div>
+
+              {orders.length > 0 && (
+                <div className="bg-white border border-border rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                    <h3 className="font-bold text-[14px] text-foreground">Recent Orders</h3>
+                    <button onClick={() => setActiveTab('orders')} className="text-[12px] text-brand font-semibold hover:underline">View all</button>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {orders.slice(0, 5).map((o) => (
+                      <div key={o.id} className="flex items-center gap-3 px-5 py-3 hover:bg-surface transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-foreground truncate">{o.display_name || o.user_email}</p>
+                          <p className="text-[11px] text-muted-foreground">{o.pack_name} · ₹{o.amount_inr}</p>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${o.status === 'paid' ? 'bg-green-100 text-green-700' : o.status === 'pending' ? 'bg-amber-100 text-amber-600' : o.status === 'refunded' ? 'bg-red-100 text-red-600' : 'bg-surface-2 text-muted-foreground border border-border'}`}>{o.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1867,9 +2096,15 @@ function AdminPanelPage({ onNavigate }) {
 
           {activeTab === 'users' && !dataLoading && (
             <div className="space-y-4">
-              <div className="relative max-w-md">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
-                <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search users..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 transition-colors" />
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="relative max-w-md flex-1 min-w-[220px]">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
+                  <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search users..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 transition-colors" />
+                </div>
+                <button onClick={exportUsers} disabled={users.length === 0} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors disabled:opacity-40">
+                  <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                  Export CSV
+                </button>
               </div>
               <div className="bg-white border border-border rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
@@ -1879,7 +2114,7 @@ function AdminPanelPage({ onNavigate }) {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {filteredUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-surface/50 transition-colors">
+                        <tr key={user.id} className={`hover:bg-surface/50 transition-colors ${user.is_active === false ? 'opacity-60 bg-red-50/40' : ''}`}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center shrink-0">
@@ -1889,15 +2124,16 @@ function AdminPanelPage({ onNavigate }) {
                                 <p className="text-[13px] font-semibold text-foreground truncate">{user.name || '—'}</p>
                                 <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                               </div>
+                              {user.is_active === false && <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full shrink-0">Suspended</span>}
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full ${user.plan === 'Pro' ? 'bg-brand-dim text-brand' : user.plan === 'Max' ? 'bg-amber-100 text-amber-600' : 'bg-surface-2 text-muted-foreground border border-border'}`}>{user.plan || 'Free'}</span>
+                            <span className={`text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full ${user.plan === 'Galaxy' || user.plan === 'Cosmos' || user.plan === 'Infinity' ? 'bg-amber-100 text-amber-600' : user.plan !== 'Free' ? 'bg-brand-dim text-brand' : 'bg-surface-2 text-muted-foreground border border-border'}`}>{user.plan || 'Free'}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <select value={user.plan || 'Free'} onChange={(e) => changePlan(user.id, e.target.value)} className="bg-surface border border-border rounded-lg px-2 py-1 text-[12px] text-foreground focus:outline-none focus:border-brand/50">
-                                {PLAN_TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <select value={user.plan || 'Free'} onChange={(e) => changeUserPlan(user.id, e.target.value)} className="bg-surface border border-border rounded-lg px-2 py-1 text-[12px] text-foreground focus:outline-none focus:border-brand/50">
+                                {ALL_TIERS.map((t) => <option key={t.id} value={t.label.split(' ')[0]}>{t.label}</option>)}
                               </select>
                               <button
                                 onClick={() => handleAssignFreeCard(user.id, user.email)}
@@ -1906,6 +2142,20 @@ function AdminPanelPage({ onNavigate }) {
                                 className="flex items-center gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-bold text-[11px] px-2.5 py-1 rounded-full transition-colors disabled:opacity-40 whitespace-nowrap"
                               >
                                 {assigningFreeCard === user.id ? '...' : '+ Free Card'}
+                              </button>
+                              <button
+                                onClick={() => viewUserCards(user)}
+                                title="View cards this user owns"
+                                className="flex items-center gap-1 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-[11px] px-2.5 py-1 rounded-full transition-colors whitespace-nowrap"
+                              >
+                                Cards
+                              </button>
+                              <button
+                                onClick={() => toggleUserStatus(user)}
+                                title={user.is_active === false ? 'Activate this user' : 'Suspend this user (blocks login)'}
+                                className={`flex items-center gap-1 font-bold text-[11px] px-2.5 py-1 rounded-full transition-colors whitespace-nowrap ${user.is_active === false ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+                              >
+                                {user.is_active === false ? 'Activate' : 'Suspend'}
                               </button>
                             </div>
                           </td>
@@ -1920,6 +2170,124 @@ function AdminPanelPage({ onNavigate }) {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'orders' && !dataLoading && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1">
+                  {['all', 'pending', 'paid', 'failed', 'refunded'].map((s) => (
+                    <button key={s} onClick={() => setOrderFilter(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-bold capitalize transition-colors ${orderFilter === s ? 'bg-brand text-white' : 'text-muted-foreground hover:text-foreground'}`}>{s}</button>
+                  ))}
+                </div>
+                <div className="relative flex-1 min-w-[200px]">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
+                  <input value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} placeholder="Search by user or order id..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+                </div>
+                <button onClick={exportOrders} disabled={orders.length === 0} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors disabled:opacity-40">
+                  <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                  Export CSV
+                </button>
+              </div>
+
+              <div className="bg-white border border-border rounded-2xl overflow-hidden">
+                {ordersLoading ? (
+                  <div className="p-10 text-center"><p className="text-[13px] text-muted-foreground font-medium">Loading orders…</p></div>
+                ) : orders.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <p className="text-[13px] text-muted-foreground font-medium">No orders found.</p>
+                    <p className="text-[11px] text-muted-foreground/60 mt-1">If this is unexpected, make sure migration <span className="font-mono">0009_admin_features.sql</span> has been run in Supabase (SQL Editor).</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border bg-surface">{['User', 'Pack', 'Amount', 'Status', 'Created', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {orders.filter((o) => orderFilter === 'all' || o.status === orderFilter).filter((o) => !orderSearch || (o.user_email || o.display_name || o.pack_name || '').toLowerCase().includes(orderSearch.toLowerCase())).map((o) => (
+                          <tr key={o.id} className="hover:bg-surface/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <p className="text-[13px] font-semibold text-foreground truncate">{o.display_name || '—'}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{o.user_email}</p>
+                            </td>
+                            <td className="px-4 py-3 text-[12px] text-foreground font-semibold whitespace-nowrap capitalize">{o.pack_name}</td>
+                            <td className="px-4 py-3 text-[13px] text-foreground font-bold whitespace-nowrap">₹{o.amount_inr}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${o.status === 'paid' ? 'bg-green-100 text-green-700' : o.status === 'pending' ? 'bg-amber-100 text-amber-600' : o.status === 'refunded' ? 'bg-red-100 text-red-600' : 'bg-surface-2 text-muted-foreground border border-border'}`}>{o.status}</span>
+                            </td>
+                            <td className="px-4 py-3 text-[11px] text-muted-foreground whitespace-nowrap">{o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN') : '—'}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                {o.status !== 'paid' && <button onClick={() => setOrderStatus(o.id, 'paid')} className="text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg">Mark Paid</button>}
+                                {o.status !== 'failed' && <button onClick={() => setOrderStatus(o.id, 'failed')} className="text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg">Fail</button>}
+                                {o.status !== 'refunded' && <button onClick={() => setOrderStatus(o.id, 'refunded')} className="text-[11px] font-bold text-amber-600 hover:bg-amber-50 px-2 py-1 rounded-lg">Refund</button>}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'packs' && !dataLoading && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {packs.map((pack) => (
+                  <div key={pack.id} className={`bg-white border rounded-2xl p-5 ${pack.is_active ? 'border-border' : 'border-red-200 opacity-70'}`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="font-bold text-[15px] text-foreground capitalize">{pack.name}</p>
+                        <p className="text-[11px] text-muted-foreground">id: <span className="font-mono">{pack.id}</span></p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pack.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>{pack.is_active ? 'Active' : 'Off'}</span>
+                    </div>
+                    {packEditing === pack.id ? (
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Price (₹)</label>
+                          <input type="number" value={editingPackForm.price_inr} onChange={(e) => setEditingPackForm((f) => ({ ...f, price_inr: e.target.value }))} className="mt-0.5 w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-foreground font-bold focus:outline-none focus:border-brand/50" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Balance ($)</label>
+                          <input type="number" value={editingPackForm.balance_usd} onChange={(e) => setEditingPackForm((f) => ({ ...f, balance_usd: e.target.value }))} className="mt-0.5 w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-foreground font-bold focus:outline-none focus:border-brand/50" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Sort order</label>
+                          <input type="number" value={editingPackForm.sort_order} onChange={(e) => setEditingPackForm((f) => ({ ...f, sort_order: e.target.value }))} className="mt-0.5 w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-foreground font-bold focus:outline-none focus:border-brand/50" />
+                        </div>
+                        <label className="flex items-center gap-2 text-[12px] font-semibold text-foreground">
+                          <input type="checkbox" checked={!!editingPackForm.is_active} onChange={(e) => setEditingPackForm((f) => ({ ...f, is_active: e.target.checked }))} className="w-4 h-4 accent-brand" /> Active
+                        </label>
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={() => savePack(pack.id)} className="flex-1 bg-brand text-white text-[12px] font-bold py-2 rounded-xl hover:opacity-90 transition-opacity">Save</button>
+                          <button onClick={() => setPackEditing(null)} className="px-3 text-[12px] font-bold text-muted-foreground hover:text-foreground">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 text-[13px]">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Price</span><span className="font-bold text-foreground">₹{pack.price_inr}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Balance</span><span className="font-bold text-foreground">${pack.balance_usd}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Order</span><span className="font-bold text-foreground">{pack.sort_order}</span></div>
+                        <div className="flex gap-2 pt-3">
+                          <button onClick={() => openPackEdit(pack)} className="flex-1 bg-surface border border-border text-[12px] font-bold text-foreground py-2 rounded-xl hover:border-brand/50 transition-colors">Edit</button>
+                          <button onClick={() => togglePackActive(pack)} className={`flex-1 text-[12px] font-bold py-2 rounded-xl transition-colors ${pack.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>{pack.is_active ? 'Disable' : 'Enable'}</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {packs.length === 0 && (
+                <div className="bg-white border border-border rounded-2xl p-10 text-center">
+                  <p className="text-[13px] text-muted-foreground font-medium">No packs loaded. Migration <span className="font-mono">0009_admin_features.sql</span> should already list them.</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -2076,6 +2444,45 @@ function AdminPanelPage({ onNavigate }) {
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)} className="flex-1 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2.5 rounded-xl hover:border-brand/50 transition-colors">Cancel</button>
               <button onClick={handleDeleteCard} className="flex-1 bg-red-600 text-white text-[13px] font-bold px-4 py-2.5 rounded-xl hover:bg-red-700 transition-colors">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {userCardsUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h3 className="font-bold text-[15px] text-foreground">Cards of {userCardsUser.name || userCardsUser.email}</h3>
+                <p className="text-[11px] text-muted-foreground">{userCards.length} card(s) owned</p>
+              </div>
+              <button onClick={() => { setUserCardsUser(null); setAssignTierFor(null) }} className="p-1.5 rounded-lg text-muted-foreground hover:bg-surface transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 divide-y divide-border">
+              {userCards.length === 0 && <p className="p-6 text-center text-[13px] text-muted-foreground">This user has no cards yet.</p>}
+              {userCards.map((c) => (
+                <div key={c.user_card_id} className="flex items-center gap-3 px-5 py-3">
+                  <div className={`w-10 h-7 rounded-lg bg-gradient-to-br ${CARD_GRADIENTS[c.provider] || CARD_GRADIENTS.Visa} flex items-end justify-end p-1 shrink-0`}><ProviderLogo provider={c.provider} size="sm" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-foreground font-mono truncate">•••• {String(c.card_number).slice(-4)} · {c.provider}</p>
+                    <p className="text-[11px] text-muted-foreground">tier <span className="font-bold capitalize">{c.tier}</span> · ${c.balance_usd} · {c.pack_name}</p>
+                  </div>
+                  <button onClick={() => removeUserCard(c.user_card_id)} title="Remove this card from the user" className="text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors">Remove</button>
+                </div>
+              ))}
+            </div>
+            <div className="px-5 py-4 border-t border-border">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2">Assign a card of tier</p>
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_TIERS.map((t) => (
+                  <button key={t.id} onClick={() => assignTierCard(t.id)} disabled={assignTierFor === t.id} className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-surface border border-border text-foreground hover:border-brand/50 transition-colors disabled:opacity-50 capitalize">
+                    {assignTierFor === t.id ? '...' : t.label.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
