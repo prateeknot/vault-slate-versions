@@ -1539,26 +1539,34 @@ function AdminPanelPage({ onNavigate }) {
   const fetchAll = async () => {
     if (!token) { setDataLoading(false); return }
     setDataLoading(true)
+    const safe = (fn, params) => supabase.rpc(fn, params)
+      .then((r) => ({ ok: true, data: r.data, error: r.error, fn }))
+      .catch((e) => ({ ok: false, data: null, error: e, fn }))
     try {
       const [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes] = await Promise.all([
-        supabase.rpc('admin_cards', { p_token: token }),
-        supabase.rpc('admin_limits', { p_token: token }),
-        supabase.rpc('admin_codes_list', { p_token: token }),
-        supabase.rpc('admin_stats', { p_token: token }),
-        supabase.rpc('admin_users', { p_token: token }),
-        supabase.rpc('admin_packs', { p_token: token }).catch(() => ({ data: null, error: { message: 'missing' } })),
+        safe('admin_cards', { p_token: token }),
+        safe('admin_limits', { p_token: token }),
+        safe('admin_codes_list', { p_token: token }),
+        safe('admin_stats', { p_token: token }),
+        safe('admin_users', { p_token: token }),
+        safe('admin_packs', { p_token: token }),
       ])
-      if (cardsRes.error?.message === 'SESSION_INVALID' || statsRes.error?.message === 'SESSION_INVALID') { setSessionExpired(true); return }
-      if (cardsRes.data) setCards(cardsRes.data.map(normalizeCard))
-      if (plansRes.data) {
+      const all = [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes]
+      if (all.some((r) => r.error?.message === 'SESSION_INVALID')) { setSessionExpired(true); return }
+      if (cardsRes.ok && cardsRes.data) setCards(cardsRes.data.map(normalizeCard))
+      if (plansRes.ok && plansRes.data) {
         const limits = {}
         plansRes.data.forEach((p) => { limits[p.plan_type] = p.card_limit })
         setPlanLimits((prev) => ({ ...prev, ...limits }))
       }
-      if (codesRes.data) setAdminCodes(codesRes.data)
-      if (statsRes.data) setTotalUsers(statsRes.data.total_users ?? 0)
-      if (usersRes.data) setUsers(usersRes.data.map((u) => ({ ...u, name: u.display_name, plan: u.plan_type })))
-      if (packsRes.data) setPacks(packsRes.data)
+      if (codesRes.ok && codesRes.data) setAdminCodes(codesRes.data)
+      if (statsRes.ok && statsRes.data) setTotalUsers(statsRes.data.total_users ?? 0)
+      if (usersRes.ok && usersRes.data) setUsers(usersRes.data.map((u) => ({ ...u, name: u.display_name, plan: u.plan_type })))
+      if (packsRes.ok && packsRes.data) setPacks(packsRes.data)
+      const failures = all.filter((r) => !r.ok)
+      if (failures.length > 0) {
+        console.warn('Admin data partial failures:', failures.map((f) => f.fn + ': ' + (f.error?.message || f.error)))
+      }
     } catch (err) {
       if (String(err?.message).includes('SESSION_INVALID')) { setSessionExpired(true); return }
       showToast('Failed to load admin data', 'error')
