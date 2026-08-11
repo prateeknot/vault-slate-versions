@@ -258,11 +258,13 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
       activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M5.25 2.25a3 3 0 00-3 3v4.318a3 3 0 00.879 2.121l9.58 9.581c.92.92 2.39 1.056 3.46.3a18.598 18.598 0 005.441-5.44c.757-1.072.62-2.54-.3-3.461L11.73 3.53a3 3 0 00-2.122-.879H5.25zM6.375 7.5a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" clipRule="evenodd" /></svg>,
     },
     {
-      id: isLoggedIn ? 'account' : 'auth', label: isLoggedIn ? 'Account' : 'Login',
+      id: isLoggedIn ? 'account' : 'auth', label: isLoggedIn ? 'Settings' : 'Login',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>,
       activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" /></svg>,
     },
   ]
+
+  const visibleTabs = isLoggedIn ? tabs : [tabs[3]]
 
   const activeView = view === 'account' || view === 'settings' ? 'account' : view === 'auth' ? (isLoggedIn ? 'account' : 'auth') : view
   const activeColor = 'text-brand'
@@ -270,7 +272,7 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
   // Split tabs around a decorative, raised center action button (visual parity
   // with the reference design). It performs a harmless existing navigation
   // (browse cards) — no new functionality is introduced.
-  const [leftTabs, rightTabs] = [tabs.slice(0, 2), tabs.slice(2)]
+  const [leftTabs, rightTabs] = [visibleTabs.slice(0, 2), visibleTabs.slice(2)]
 
   const renderTab = (tab) => {
     const isActive = activeView === tab.id || (tab.id === 'auth' && view === 'auth' && !isLoggedIn)
@@ -295,7 +297,7 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
           {rightTabs.map(renderTab)}
         </div>
         <button
-          onClick={() => onNavigate('cards')}
+          onClick={() => onNavigate(isLoggedIn ? 'cards' : 'auth')}
           aria-label="Top up"
           className="ios-topup ios-topup-icon absolute -top-5 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg border-4 border-background active:scale-95 transition-transform"
         >
@@ -1055,9 +1057,9 @@ function CardsPage({ currentUser, onNavigate }) {
             <div key={card.id} className="rounded-2xl border border-border overflow-hidden">
               <CardListItem card={card} locked />
               <div className="px-4 pb-3 bg-white border-t border-border/60 -mt-2 pt-2.5">
-                <button onClick={() => (isGuest ? onNavigate('auth') : onNavigate('pricing'))}
+                <button onClick={() => onNavigate('pricing')}
                   className="w-full py-2.5 rounded-xl font-bold text-[13px] transition-all active:scale-[0.98] bg-surface border border-border text-muted-foreground">
-                  {isGuest ? 'Sign in to unlock' : 'Locked — upgrade your plan'}
+                  {isGuest ? 'View plans to unlock' : 'Locked — upgrade your plan'}
                 </button>
               </div>
             </div>
@@ -1324,7 +1326,7 @@ function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange }
             <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
           </div>
           <div className="ios-title-box rounded-2xl px-4 py-2.5">
-            <span className="font-bold text-foreground">My Account</span>
+            <span className="font-bold text-foreground">Settings</span>
           </div>
         </div>
       </header>
@@ -2090,7 +2092,7 @@ function AdminPanelPage({ onNavigate }) {
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 function App() {
-  const [view, setView] = useState('landing')
+  const [view, setView] = useState('auth')
   const [currentUser, setCurrentUser] = useState(null)
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('vcz_theme') || 'blue' } catch { return 'blue' }
@@ -2105,10 +2107,14 @@ function App() {
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem('vcz_user')
-      if (saved) setCurrentUser(JSON.parse(saved))
+      if (saved) { setCurrentUser(JSON.parse(saved)); setView('cards') }
     } catch { }
     setBooting(false)
   }, [])
+
+  useEffect(() => {
+    if (!booting && !currentUser && view !== 'auth') setView('auth')
+  }, [booting, currentUser, view])
 
   const applySupabaseUser = useCallback(async (authUser) => {
     let plan = 'free'
@@ -2178,7 +2184,7 @@ function App() {
     setCurrentUser(null)
     try { sessionStorage.removeItem('vcz_user') } catch { }
     try { supabase.auth.signOut() } catch { }
-    setView('landing')
+    setView('auth')
   }, [])
 
   if (booting) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-sm text-muted-foreground">Loading…</p></div>
