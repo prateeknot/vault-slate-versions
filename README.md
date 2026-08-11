@@ -1,76 +1,49 @@
-# Virtual Cards — Base
+# VCardz — Virtual Cards
 
-Responsive web platform where an admin lists temporary virtual cards, and users (Free/Pro/Max plans) can view and copy card details.
+Temporary virtual card management web app. Admin lists virtual cards in tier pools (Free/Spark/Orbit/Nova/Galaxy/Cosmos/Infinity), users sign up and claim cards with USD balances, and top up via INR packs.
 
 ## Stack
-- **Frontend**: React + Vite + Tailwind CSS
-- **Auth + DB**: Supabase (Auth, Postgres, RLS + RPC)
-- **Bot protection**: Cloudflare Turnstile (to be wired)
-- **Hosting**: Vercel (to be connected)
+
+- **Frontend**: React 18 + Vite + Tailwind CSS v3
+- **Auth + DB**: Supabase (Auth, Postgres, RLS + code-gated RPCs)
+- **Hosting**: Vercel (GitHub auto-deploy)
+
+## Features
+
+- Sign up / sign in → get a virtual card with a USD balance
+- Card tier pools with random USD balances (Free $0 → Infinity $82)
+- Top-Up Packs (INR price → USD card balance) with UPI-mock + Telegram Stars checkout
+- iOS-inspired liquid-glass UI with 5 color themes: **Mist, Lavender, Sage, Sand, Graphite** (switchable in Account)
+- Animated flip cards, shimmer, bottom-nav, card detail modal with one-tap copy
+- Full admin panel: overview stats, card CRUD + bulk add, user management + free-card assignment, plan limits, admin codes
+
+## Run Locally
+
+```bash
+npm install
+npm run dev
+# http://localhost:5173
+```
+
+## Env Vars
+
+```bash
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
 
 ## Project Structure
+
 ```
-virtual-cards/
-├── index.html
-├── package.json
-├── vite.config.js
-├── tailwind.config.js      # Design tokens (accent teal, neutral palette)
-├── postcss.config.js
-├── .env.example            # Env var template
-├── supabase/
-│   └── migrations/
-│       └── 0001_initial_schema.sql   # Tables, RLS, masked view
-└── src/
-    ├── main.jsx
-    ├── App.jsx             # Routing
-    ├── index.css           # Global styles + component classes
-    ├── lib/
-    │   └── supabase.js     # Supabase client
-    ├── components/
-    │   ├── Logo.jsx
-    │   ├── CardItem.jsx    # Card display (masked/unmasked)
-    │   └── CopyButton.jsx
-    └── pages/
-        ├── LandingPage.jsx
-        ├── AuthPage.jsx    # Login/signup + Turnstile placeholder
-        ├── CardListingPage.jsx
-        ├── AdminPanelPage.jsx  # 6-digit code + card mgmt + plan limits
-        └── PricingPage.jsx
+src/
+├── main.jsx              # Entry
+├── App.jsx               # All pages + components (single-file)
+├── index.css             # Theme system + iOS glass surface system
+└── lib/supabase.js       # Supabase client
+supabase/migrations/      # SQL migrations (schema, RLS, RPCs)
 ```
 
-## Design System
-- **Colors**: White/neutral base + single accent (teal `#0D9488`)
-- **Fonts**: Inter (sans) + JetBrains Mono (mono for card numbers)
-- **Style**: Restrained spacing, subtle borders/shadows, understated UI
-- **Mobile-first**: `container-mobile` (max-w-md) for phone-first, centered on desktop
+## Git / Deploy
 
-## Pages
-| Route | Purpose |
-|---|---|
-| `/` | Landing page |
-| `/auth` | Login/signup + Turnstile |
-| `/cards` | Card listing (masked/unmasked by plan) |
-| `/admin` | Admin panel (6-digit code gate) |
-| `/pricing` | Free/Pro/Max plans display |
-
-## Database (Supabase)
-- `plans` — Free/Pro/Max with admin-adjustable card limits
-- `user_plans` — maps auth users to plans (auto-created on signup via trigger)
-- `cards` — full card details; **no direct table access from the API**
-- `user_cards` — claims (unique per user + card), created only via validated RPC
-- `admin_codes` — 6-digit codes; gate for admin RPCs
-- `code_sessions` — reserved for future session lock
-
-### Security model (migration `0003_security_fixes.sql`)
-- `masked_cards` view — the ONLY frontend-readable projection of cards (last4 + metadata, **never CVV**)
-- User RPCs: `get_my_plan`, `get_available_cards` (masked), `get_claimed_card_details` (full details only for the caller's claimed cards), `claim_card` (server-side validated: active card + matching plan tier + plan limit)
-- Admin RPCs: every call is gated by a 6-digit code (`admin_verify_code`, `admin_list_cards`, `admin_add_card`, …)
-- ⚠️ No `VITE_SUPABASE_SERVICE_KEY` in the frontend — the old service-role client was removed
-
-## Next Steps
-1. Apply `0003_security_fixes.sql`: `SUPABASE_ACCESS_TOKEN=xxx SUPABASE_PROJECT_REF=yyy node apply-sql.js supabase/migrations/0003_security_fixes.sql`
-2. **Revoke the old `sbp_v0_...` access token** leaked in earlier commits (Supabase → Account → Access Tokens)
-3. Add env vars to `.env` (anon key only) and to your shell for the local scripts
-4. Wire up Cloudflare Turnstile (client widget + server-side verify)
-5. Wire up payment gateway for Pro/Max upgrades
-6. Connect private GitHub repo → Vercel auto-deploy
+- Main branch: `main`, remote: `https://github.com/prateeknot/vault-slate-versions`
+- Deploy: push to `main` → Vercel auto-deploys
