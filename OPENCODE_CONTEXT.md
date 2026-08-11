@@ -165,3 +165,19 @@ npm run dev
 - Session storage used for user & admin token persistence
 - `PLAN_LIMITS` still used in AccountPage display (legacy, not core to V2 logic)
 - Supabase URL: `https://zqckifdofenqmgjfuydj.supabase.co`
+
+---
+
+## Connection & Deploy Cheatsheet (current, 2026-08-11)
+- **GitHub repo**: `prateeknot/vault-slate-versions`, branch `main`
+- **Git identity on this machine**: `prateeknot` / `309018620+prateeknot@users.noreply.github.com`
+  (⚠️ MUST match GitHub, otherwise Vercel blocks deploy: "could not associate committer")
+- **Vercel**: project `vault-slate-versions`, GitHub auto-deploy on push to `main`
+- **Live URL**: https://vault-slate-versions.vercel.app
+- **Deploy flow**: edit → `npm run build` → `git add -A && git commit -m "..." && git push origin main`
+  → Vercel auto-deploys (check GitHub commit status "Vercel" → success/Ready)
+- **Secrets**: raw values only in `/home/user/ai/.secrets_store.txt` (gitignored) —
+  GITHUB_PAT, VERCEL_TOKEN (also in `~/.local/share/com.vercel.cli/auth.json`),
+  VITE_SUPABASE_URL/ANON_KEY, VITE_TURNSTILE_SITE_KEY, TURNSTILE_SECRET.
+  Easiest GitHub auth = `~/.git-credentials` (credential.helper=store).
+- **Master memory + AI rules**: `/home/user/ai/PROJECT_MEMORY.txt` — read + update after every session.
