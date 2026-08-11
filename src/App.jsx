@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 
 // ─── View / Plan types ────────────────────────────────────────────────────────
@@ -411,6 +411,47 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
   const [error, setError] = useState('')
   const [googleNotice, setGoogleNotice] = useState(false)
 
+  const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAEMyGZlQOjX7EQJK'
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const turnstileRef = useRef(null)
+  const turnstileIdRef = useRef(null)
+
+  const renderTurnstile = useCallback(() => {
+    if (!window.turnstile || !turnstileRef.current || !SITE_KEY) return
+    if (turnstileIdRef.current) {
+      window.turnstile.remove(turnstileIdRef.current)
+      turnstileIdRef.current = null
+    }
+    turnstileIdRef.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: SITE_KEY,
+      theme: 'light',
+      callback: (token) => setTurnstileToken(token),
+      'expired-callback': () => setTurnstileToken(''),
+      'error-callback': () => setTurnstileToken(''),
+    })
+  }, [SITE_KEY])
+
+  useEffect(() => {
+    if (window.turnstile) {
+      renderTurnstile()
+    } else {
+      const checkInterval = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(checkInterval)
+          renderTurnstile()
+        }
+      }, 300)
+      return () => clearInterval(checkInterval)
+    }
+    return undefined
+  }, [renderTurnstile])
+
+  useEffect(() => () => {
+    if (turnstileIdRef.current && window.turnstile) {
+      try { window.turnstile.remove(turnstileIdRef.current) } catch { }
+    }
+  }, [])
+
   const [adminCode, setAdminCode] = useState(['', '', '', '', '', ''])
   const [adminError, setAdminError] = useState('')
   const [adminLoading, setAdminLoading] = useState(false)
@@ -430,8 +471,24 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
     if (!isLogin && !name) { setError('Please enter your name.'); return }
     if (!isLogin && (name.length < 2 || name.length > 50)) { setError('Name must be 2-50 characters.'); return }
     if (!isLogin && !/^[a-zA-Z\s'-]+$/.test(name)) { setError('Name can only contain letters, spaces, hyphens, and apostrophes.'); return }
+    if (SITE_KEY && !turnstileToken) { setError('Please complete the security check.'); return }
     setLoading(true)
     try {
+      if (SITE_KEY && turnstileToken) {
+        const verifyRes = await fetch('/api/verify-turnstile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: turnstileToken }),
+        })
+        const verifyJson = await verifyRes.json().catch(() => ({}))
+        if (!verifyRes.ok || !verifyJson.success) {
+          setError('Security verification failed. Please try again.')
+          window.turnstile?.reset()
+          setTurnstileToken('')
+          setLoading(false)
+          return
+        }
+      }
       if (isLogin) {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
         if (signInError) throw signInError
@@ -586,6 +643,8 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
               <label htmlFor="password" className="block text-[12px] text-foreground font-semibold mb-1.5">Password</label>
               <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className={inputBase} />
             </div>
+
+            <div ref={turnstileRef} className="flex justify-center" />
 
             {!isLogin && (
               <div>
