@@ -1,5 +1,10 @@
 # 🚀 VCardz Project — Full Context for OpenCode
 
+> ⚠️ **READ FIRST: This repo's canonical memory + rules file lives at
+> `/home/user/ai/PROJECT_MEMORY.txt` (workspace root). It contains:
+> connection rules (GitHub → Vercel → Supabase), deploy flow, credentials
+> index, and the AI session log. Update it after every session.**
+
 ## Project Location
 ```
 C:\Users\Aorus\Documents\Cline\Workflows\virtual-cards
