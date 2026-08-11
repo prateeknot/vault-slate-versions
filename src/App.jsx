@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 
 // ─── View / Plan types ────────────────────────────────────────────────────────
@@ -67,44 +67,60 @@ function ProviderLogo({ provider, size = 'sm' }) {
 function ChipSVG() {
   return (
     <svg width="34" height="26" viewBox="0 0 34 26" fill="none" aria-hidden="true">
-      <rect width="34" height="26" rx="4" fill="#c8a84b" />
-      <rect x="3" y="3" width="28" height="20" rx="3" fill="#e8c96e" />
-      <rect x="13" y="0" width="8" height="26" rx="1" fill="#c8a84b" opacity="0.4" />
-      <rect x="0" y="9" width="34" height="8" rx="1" fill="#c8a84b" opacity="0.4" />
-      <rect x="13" y="9" width="8" height="8" rx="1" fill="#b8922a" />
+      <rect width="34" height="26" rx="4" fill="#b8c2d1" />
+      <rect x="3" y="3" width="28" height="20" rx="3" fill="#dfe5ec" />
+      <rect x="13" y="0" width="8" height="26" rx="1" fill="#b8c2d1" opacity="0.5" />
+      <rect x="0" y="9" width="34" height="8" rx="1" fill="#b8c2d1" opacity="0.5" />
+      <rect x="13" y="9" width="8" height="8" rx="1" fill="#a3aec0" />
     </svg>
   )
 }
 
-// ─── Card Gradients ───────────────────────────────────────────────────────────
+// ─── Card Gradients (slate / navy fintech family, subtle per-provider hue) ────
 const CARD_GRADIENTS = {
-  Visa: 'from-violet-500 via-purple-600 to-indigo-700',
-  Mastercard: 'from-rose-500 via-pink-600 to-orange-500',
-  Amex: 'from-emerald-500 via-teal-600 to-cyan-700',
-  Discover: 'from-orange-400 via-amber-500 to-yellow-500',
-  RuPay: 'from-fuchsia-500 via-pink-600 to-rose-600',
+  Visa: 'from-slate-500 via-slate-600 to-slate-700',
+  Mastercard: 'from-zinc-500 via-neutral-600 to-zinc-700',
+  Amex: 'from-teal-600 via-slate-600 to-slate-700',
+  Discover: 'from-stone-500 via-neutral-600 to-stone-700',
+  RuPay: 'from-indigo-500 via-slate-600 to-slate-700',
 }
 const CARD_FULL_GRADIENTS = {
-  Visa: 'from-[#4f46e5] via-[#6d28d9] to-[#312e81]',
-  Mastercard: 'from-[#be123c] via-[#db2777] to-[#ea580c]',
-  Amex: 'from-[#065f46] via-[#0f766e] to-[#164e63]',
-  Discover: 'from-[#b45309] via-[#d97706] to-[#92400e]',
-  RuPay: 'from-[#86198f] via-[#be185d] to-[#9f1239]',
+  Visa: 'from-[#7189a3] via-[#5f7894] to-[#4c637c]',
+  Mastercard: 'from-[#818995] via-[#68717c] to-[#535d69]',
+  Amex: 'from-[#6d9090] via-[#5f7d84] to-[#4f6973]',
+  Discover: 'from-[#958777] via-[#7d7163] to-[#655b50]',
+  RuPay: 'from-[#7b86aa] via-[#687898] to-[#53637f]',
 }
 const CARD_GLOW = {
-  Visa: 'rgba(99,91,255,0.22)',
-  Mastercard: 'rgba(244,63,94,0.22)',
-  Amex: 'rgba(16,185,129,0.22)',
-  Discover: 'rgba(245,158,11,0.22)',
-  RuPay: 'rgba(217,70,239,0.22)',
+  Visa: 'rgba(95,120,148,0.20)',
+  Mastercard: 'rgba(104,113,124,0.18)',
+  Amex: 'rgba(95,125,132,0.18)',
+  Discover: 'rgba(125,113,99,0.18)',
+  RuPay: 'rgba(104,120,152,0.18)',
 }
 const CATEGORY_COLORS = {
-  Netflix: { bg: 'bg-red-100', text: 'text-red-600', border: 'border-red-200' },
-  Amazon: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-  Spotify: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
-  YouTube: { bg: 'bg-rose-100', text: 'text-rose-600', border: 'border-rose-200' },
-  Other: { bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-200' },
-  All: { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
+  Netflix: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200' },
+  Amazon: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200' },
+  Spotify: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200' },
+  YouTube: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200' },
+  Other: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200' },
+  All: { bg: 'bg-brand-dim', text: 'text-brand', border: 'border-brand/20' },
+}
+
+  // Display-only sample so the Cards screen has a clear visual reference even
+  // before the connected account has claimed a real card. It never enters state
+  // or Supabase and cannot be claimed.
+const PREVIEW_CARD = {
+  id: 'preview-card',
+  provider: 'Visa',
+  bank: 'Sample Bank',
+  card_number: '4242424242424242',
+  name: 'Your Name',
+  expiry: '09/29',
+  cvv: '123',
+  balance_usd: 12,
+  category: 'Other',
+  tier: 'preview',
 }
 
 // ─── Virtual Card Visual ──────────────────────────────────────────────────────
@@ -125,20 +141,20 @@ function VirtualCardVisual({ card, flipped = false, onFlip }) {
         {/* Front */}
         <div
           className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient} p-5 flex flex-col justify-between overflow-hidden card-shimmer`}
-          style={{ backfaceVisibility: 'hidden' }}
+          style={{ backfaceVisibility: 'hidden', boxShadow: '0 18px 34px -14px rgba(15,23,42,0.45)' }}
         >
-          <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.14) 0%,transparent 50%)' }} />
-          <div className="absolute -top-8 -right-8 w-36 h-36 rounded-full bg-white/5 pointer-events-none" />
-          <div className="absolute -bottom-10 -left-6 w-28 h-28 rounded-full bg-black/10 pointer-events-none" />
+          <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.10) 0%,transparent 55%)' }} />
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/[0.04] pointer-events-none" />
+          <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-black/15 pointer-events-none" />
 
           <div className="flex items-start justify-between relative z-10">
             <div>
-              <p className="text-[10px] text-white/60 uppercase tracking-widest font-bold">VCardz</p>
-              <p className="text-[11px] text-white/50 mt-0.5 font-medium">{card.bank}</p>
+              <p className="text-[10px] text-white/55 uppercase tracking-widest font-bold">VCardz</p>
+              <p className="text-[11px] text-white/40 mt-0.5 font-medium">{card.bank}</p>
             </div>
             <div className="flex items-center gap-2">
               {card.balance_usd !== undefined && (
-                <span className="bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/30 text-white font-black text-[11px] shadow-sm tracking-wide">
+                <span className="bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/15 text-white font-black text-[11px] shadow-sm tracking-wide">
                   ${card.balance_usd} USD
                 </span>
               )}
@@ -150,11 +166,11 @@ function VirtualCardVisual({ card, flipped = false, onFlip }) {
             <p className="font-mono text-white/90 text-[15px] tracking-[0.2em] font-semibold drop-shadow-sm">{formatCardNumber(card.card_number)}</p>
             <div className="flex items-end justify-between mt-2.5">
               <div>
-                <p className="text-[8px] text-white/40 uppercase tracking-widest">Card Holder</p>
+                <p className="text-[8px] text-white/35 uppercase tracking-widest">Card Holder</p>
                 <p className="text-[12px] text-white font-bold tracking-wide mt-0.5">{card.name}</p>
               </div>
               <div className="text-right">
-                <p className="text-[8px] text-white/40 uppercase tracking-widest">Expires</p>
+                <p className="text-[8px] text-white/35 uppercase tracking-widest">Expires</p>
                 <p className="text-[12px] text-white font-bold mt-0.5">{card.expiry}</p>
               </div>
             </div>
@@ -164,25 +180,25 @@ function VirtualCardVisual({ card, flipped = false, onFlip }) {
         {/* Back */}
         <div
           className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient} flex flex-col justify-between overflow-hidden`}
-          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', boxShadow: '0 18px 34px -14px rgba(15,23,42,0.45)' }}
         >
-          <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.08) 0%,transparent 50%)' }} />
-          <div className="mt-8 h-10 bg-black/60 w-full" />
+          <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.06) 0%,transparent 55%)' }} />
+          <div className="mt-8 h-10 bg-black/50 w-full" />
           <div className="px-5 pb-5 relative z-10">
             <div className="flex items-center justify-end gap-3 mt-4">
-              <div className="flex-1 h-8 rounded-lg bg-white/10 backdrop-blur-sm" />
+              <div className="flex-1 h-8 rounded-lg bg-white/8 backdrop-blur-sm" />
               <div className="bg-white/95 rounded-lg px-3 py-2 flex items-center gap-2 shadow-md">
-                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wide">CVV</p>
-                <p className="font-mono text-gray-900 font-black text-[14px] tracking-widest">{card.cvv}</p>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">CVV</p>
+                <p className="font-mono text-slate-900 font-black text-[14px] tracking-widest">{card.cvv}</p>
               </div>
             </div>
-            <p className="text-[9px] text-white/30 text-center mt-4 tracking-wide">Tap to flip back</p>
+            <p className="text-[9px] text-white/25 text-center mt-4 tracking-wide">Tap to flip back</p>
           </div>
         </div>
       </div>
 
       {!flipped && (
-        <div className="absolute bottom-3 right-3 z-20 text-[9px] text-white/35 flex items-center gap-1">
+        <div className="absolute bottom-3 right-3 z-20 text-[9px] text-white/30 flex items-center gap-1">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zm-7.518-.267A8.25 8.25 0 1120.25 10.5M8.288 14.212A5.25 5.25 0 1117.25 10.5" /></svg>
           tap to flip
         </div>
@@ -193,11 +209,13 @@ function VirtualCardVisual({ card, flipped = false, onFlip }) {
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function Toast({ message, type, onClose }) {
-  const s = { success: 'bg-green-50 border-green-200 text-green-700', error: 'bg-red-50 border-red-200 text-red-600', info: 'bg-blue-50 border-blue-200 text-blue-600' }
+  const s = { success: 'bg-white border-border text-foreground', error: 'bg-white border-red-200 text-red-600', info: 'bg-white border-border text-foreground' }
+  const dot = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-slate-400' }
   return (
-    <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg ${s[type]}`} style={{ minWidth: 220 }}>
+    <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-panel backdrop-blur-md ${s[type]}`} style={{ minWidth: 220 }}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot[type]}`} />
       <span className="text-[13px] font-medium">{message}</span>
-      <button onClick={onClose} className="ml-auto opacity-60 hover:opacity-100" aria-label="Close">
+      <button onClick={onClose} className="ml-auto opacity-50 hover:opacity-100" aria-label="Close">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
     </div>
@@ -247,27 +265,43 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
   ]
 
   const activeView = view === 'account' || view === 'settings' ? 'account' : view === 'auth' ? (isLoggedIn ? 'account' : 'auth') : view
-  const NAV_ACTIVE_COLORS = ['text-violet-600', 'text-pink-500', 'text-emerald-500', 'text-amber-500']
+  const activeColor = 'text-brand'
+
+  // Split tabs around a decorative, raised center action button (visual parity
+  // with the reference design). It performs a harmless existing navigation
+  // (browse cards) — no new functionality is introduced.
+  const [leftTabs, rightTabs] = [tabs.slice(0, 2), tabs.slice(2)]
+
+  const renderTab = (tab) => {
+    const isActive = activeView === tab.id || (tab.id === 'auth' && view === 'auth' && !isLoggedIn)
+    return (
+      <button
+        key={tab.id}
+        onClick={() => onNavigate(tab.id)}
+        className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-colors ${isActive ? activeColor : 'text-muted-foreground/60'}`}
+      >
+        <span className={isActive ? 'nav-active' : ''}>{isActive ? tab.activeFill : tab.icon}</span>
+        <span className={`text-[10px] font-bold tracking-wide ${isActive ? activeColor : 'text-muted-foreground/50'}`}>{tab.label}</span>
+      </button>
+    )
+  }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-white/95 backdrop-blur-md">
-      <div className="max-w-md mx-auto px-2 flex items-center justify-around h-16">
-        {tabs.map((tab, i) => {
-          const isActive = activeView === tab.id || (tab.id === 'auth' && view === 'auth' && !isLoggedIn)
-          const activeColor = NAV_ACTIVE_COLORS[i] ?? 'text-brand'
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onNavigate(tab.id)}
-              className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-colors ${isActive ? activeColor : 'text-muted-foreground/60'}`}
-            >
-              <span className={isActive ? 'nav-active' : ''}>{isActive ? tab.activeFill : tab.icon}</span>
-              <span className={`text-[10px] font-bold tracking-wide ${isActive ? activeColor : 'text-muted-foreground/50'}`}>{tab.label}</span>
-            </button>
-          )
-        })}
+    <nav className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-3">
+      <div className="max-w-md mx-auto relative rounded-[28px] border border-border bg-white/90 backdrop-blur-xl shadow-panel">
+        <div className="flex items-center justify-around h-16 px-2">
+          {leftTabs.map(renderTab)}
+          <span className="w-14 shrink-0" aria-hidden="true" />
+          {rightTabs.map(renderTab)}
+        </div>
+        <button
+          onClick={() => onNavigate('cards')}
+          aria-label="Top up"
+          className="ios-topup ios-topup-icon absolute -top-5 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg border-4 border-background active:scale-95 transition-transform"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+        </button>
       </div>
-      <div className="h-px bg-gradient-to-r from-violet-200 via-pink-200 to-emerald-200 opacity-60" />
     </nav>
   )
 }
@@ -276,23 +310,25 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
 function LandingPage({ isLoggedIn, onNavigate, availableCount }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+              <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
             </div>
             <span className="font-bold text-foreground tracking-tight">VCardz</span>
           </div>
-          {isLoggedIn
-            ? <button onClick={() => onNavigate('cards')} className="text-sm font-semibold text-brand bg-brand-dim border border-brand/20 rounded-xl px-4 py-1.5">Browse Cards</button>
-            : <button onClick={() => onNavigate('auth')} className="text-sm font-semibold text-brand bg-brand-dim border border-brand/20 rounded-xl px-4 py-1.5">Sign in</button>}
+          <div className="ios-header-box px-2 py-1.5 rounded-2xl">
+            {isLoggedIn
+              ? <button onClick={() => onNavigate('cards')} className="ios-header-action text-sm font-semibold text-brand px-3 py-1.5 rounded-xl">Browse Cards</button>
+              : <button onClick={() => onNavigate('auth')} className="ios-header-action text-sm font-semibold text-brand px-3 py-1.5 rounded-xl">Sign in</button>}
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-md mx-auto w-full px-4 pb-24">
+      <main className="flex-1 max-w-md mx-auto w-full px-4 pb-28">
         <section className="pt-10 pb-8">
-          <div className="inline-flex items-center gap-2 bg-brand-dim border border-brand/20 rounded-full px-3 py-1 mb-5">
+          <div className="inline-flex items-center gap-2 bg-brand-dim border border-brand/15 rounded-full px-3 py-1 mb-5">
             <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
             <span className="text-[11px] text-brand font-semibold tracking-wide uppercase">{availableCount ?? 8} cards available now</span>
           </div>
@@ -306,8 +342,7 @@ function LandingPage({ isLoggedIn, onNavigate, availableCount }) {
           <div className="mt-7 flex flex-col gap-3">
             <button
               onClick={() => onNavigate(isLoggedIn ? 'cards' : 'auth')}
-              className="w-full py-3.5 rounded-2xl font-black text-[15px] hover:opacity-90 active:scale-[0.98] transition-all shadow-lg text-white"
-              style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)' }}
+              className="w-full py-3.5 rounded-2xl font-black text-[15px] hover:opacity-90 active:scale-[0.98] transition-all shadow-lg text-primary-foreground bg-primary"
             >
               {isLoggedIn ? 'Browse Cards' : 'Get started free'}
             </button>
@@ -353,7 +388,7 @@ function LandingPage({ isLoggedIn, onNavigate, availableCount }) {
               </div>
             ))}
           </div>
-          <button onClick={() => onNavigate('pricing')} className="mt-3 w-full text-[13px] text-brand font-semibold py-2.5 rounded-xl border border-brand/25 hover:bg-brand-dim transition-colors">
+          <button onClick={() => onNavigate('pricing')} className="mt-3 w-full text-[13px] text-brand font-semibold py-2.5 rounded-xl border border-brand/20 hover:bg-brand-dim transition-colors">
             View all packs
           </button>
         </section>
@@ -374,51 +409,11 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
   const [plan, setPlan] = useState('free')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [turnstileToken, setTurnstileToken] = useState('')
-  const turnstileRef = useRef(null)
-  const turnstileIdRef = useRef(null)
+  const [googleNotice, setGoogleNotice] = useState(false)
 
   const [adminCode, setAdminCode] = useState(['', '', '', '', '', ''])
   const [adminError, setAdminError] = useState('')
   const [adminLoading, setAdminLoading] = useState(false)
-
-  const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAEGIOMkUoMsNj6yg'
-
-  const renderTurnstile = useCallback(() => {
-    if (!window.turnstile || !turnstileRef.current || !SITE_KEY) return
-    if (turnstileIdRef.current) {
-      window.turnstile.remove(turnstileIdRef.current)
-      turnstileIdRef.current = null
-    }
-    turnstileIdRef.current = window.turnstile.render(turnstileRef.current, {
-      sitekey: SITE_KEY,
-      theme: 'light',
-      callback: (token) => setTurnstileToken(token),
-      'expired-callback': () => setTurnstileToken(''),
-      'error-callback': () => setTurnstileToken(''),
-    })
-  }, [SITE_KEY])
-
-  useEffect(() => {
-    if (window.turnstile) {
-      renderTurnstile()
-    } else {
-      const checkInterval = setInterval(() => {
-        if (window.turnstile) {
-          clearInterval(checkInterval)
-          renderTurnstile()
-        }
-      }, 300)
-      return () => clearInterval(checkInterval)
-    }
-    return undefined
-  }, [renderTurnstile])
-
-  useEffect(() => () => {
-    if (turnstileIdRef.current && window.turnstile) {
-      try { window.turnstile.remove(turnstileIdRef.current) } catch { }
-    }
-  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -435,24 +430,8 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
     if (!isLogin && !name) { setError('Please enter your name.'); return }
     if (!isLogin && (name.length < 2 || name.length > 50)) { setError('Name must be 2-50 characters.'); return }
     if (!isLogin && !/^[a-zA-Z\s'-]+$/.test(name)) { setError('Name can only contain letters, spaces, hyphens, and apostrophes.'); return }
-    if (SITE_KEY && !turnstileToken) { setError('Please complete the security check.'); return }
     setLoading(true)
     try {
-      // Server-side Turnstile verification (canonical siteverify)
-      if (SITE_KEY && turnstileToken) {
-        const verifyRes = await fetch('/api/verify-turnstile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: turnstileToken }),
-        })
-        const verifyJson = await verifyRes.json().catch(() => ({}))
-        if (!verifyRes.ok || !verifyJson.success) {
-          setError('Security verification failed. Please try again.')
-          window.turnstile?.reset()
-          return
-        }
-      }
-
       if (isLogin) {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
         if (signInError) throw signInError
@@ -532,28 +511,28 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center h-14">
           <button onClick={() => onNavigate('landing')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-brand flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
             </div>
             <span className="font-bold text-foreground">VCardz</span>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-md mx-auto w-full px-4 py-8 pb-24 space-y-4">
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-8 pb-28 space-y-4">
         {/* User card */}
-        <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-sm">
+        <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-soft">
           <button
             onClick={() => setMode(mode === 'user' ? 'user' : 'user')}
             className="w-full flex items-center gap-3 px-5 py-4 bg-white"
           >
-            <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand-dim flex items-center justify-center shrink-0">
               <svg className="w-5 h-5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
             </div>
             <div className="text-left">
@@ -566,7 +545,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
             <div className="flex bg-surface rounded-xl p-1 border border-border">
               {[{ label: 'Sign In', val: true }, { label: 'Sign Up', val: false }].map(({ label, val }) => (
                 <button key={label} onClick={() => setIsLogin(val)}
-                  className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition-all ${isLogin === val ? 'bg-brand text-white shadow-sm' : 'text-muted-foreground'}`}>
+                  className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition-all ${isLogin === val ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}>
                   {label}
                 </button>
               ))}
@@ -588,8 +567,6 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
               <label htmlFor="password" className="block text-[12px] text-foreground font-semibold mb-1.5">Password</label>
               <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className={inputBase} />
             </div>
-
-            <div ref={turnstileRef} className="flex justify-center" />
 
             {!isLogin && (
               <div>
@@ -614,8 +591,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
             )}
 
             <button type="submit" disabled={loading}
-              className="w-full py-3 rounded-xl font-bold text-[14px] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md text-white"
-              style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)' }}>
+              className="w-full py-3 rounded-xl font-bold text-[14px] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md text-primary-foreground bg-primary">
               {loading
                 ? <span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>{isLogin ? 'Signing in...' : 'Creating account...'}</span>
                 : (isLogin ? 'Sign In' : 'Create Account')}
@@ -628,6 +604,13 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
               </button>
             </p>
           </form>
+          <div className="px-5 pb-5">
+            <button type="button" onClick={() => { setGoogleNotice(true); setTimeout(() => setGoogleNotice(false), 3200) }} className="glass-secondary w-full flex items-center justify-center gap-3 py-3 rounded-2xl text-[13px] font-bold text-foreground">
+              <span className="google-mark" aria-hidden="true">G</span>
+              Continue with Google
+            </button>
+            {googleNotice && <p role="status" className="mt-2 text-center text-[11px] text-muted-foreground">Google sign-in will be available soon.</p>}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -636,10 +619,10 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
           <div className="flex-1 h-px bg-border" />
         </div>
 
-        <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-sm">
+        <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-soft">
           <div className="px-5 py-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" /></svg>
+            <div className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" /></svg>
             </div>
             <div className="flex-1">
               <p className="text-[14px] font-bold text-foreground">Continue as Guest</p>
@@ -648,19 +631,19 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
             <button
               onClick={handleGuestLogin}
               disabled={loading}
-              className="shrink-0 px-4 py-2 rounded-xl bg-emerald-500 text-white text-[13px] font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-sm"
+              className="shrink-0 px-4 py-2 rounded-xl bg-slate-700 text-white text-[13px] font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-sm"
             >
               {loading ? '...' : 'Enter'}
             </button>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-sm">
+        <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-soft">
           <button
             onClick={() => setMode(mode === 'admin' ? 'user' : 'admin')}
             className="w-full flex items-center gap-3 px-5 py-4"
           >
-            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center shrink-0">
               <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
             </div>
             <div className="text-left flex-1">
@@ -692,7 +675,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
               <button
                 onClick={() => handleAdminSubmit()}
                 disabled={adminLoading || adminCode.join('').length < 6}
-                className="w-full py-3 rounded-xl bg-slate-800 text-white font-bold text-[14px] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 shadow-sm"
+                className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-[14px] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 shadow-sm"
               >
                 {adminLoading
                   ? <span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Verifying...</span>
@@ -715,12 +698,12 @@ function CardListItem({ card, onOpen, locked = false }) {
     <button
       onClick={() => onOpen(card)}
       disabled={locked}
-      className="card-item-glow w-full text-left bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3.5 active:scale-[0.98] transition-all duration-200 hover:shadow-md hover:border-white"
+      className="card-item-glow w-full text-left bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3.5 active:scale-[0.98] transition-all duration-200 hover:shadow-soft"
       style={{ ['--glow-color']: CARD_GLOW[card.provider] }}
     >
       <div className={`relative w-14 h-10 rounded-xl bg-gradient-to-br ${CARD_GRADIENTS[card.provider] || CARD_GRADIENTS.Visa} flex flex-col items-start justify-between p-1.5 shrink-0 overflow-hidden`}>
-        <div className="absolute inset-0 rounded-xl" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.2) 0%,transparent 55%)' }} />
-        <div className="w-4 h-3 rounded-sm relative z-10" style={{ background: 'linear-gradient(135deg,#e8c96e,#c8a84b)', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
+        <div className="absolute inset-0 rounded-xl" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.14) 0%,transparent 55%)' }} />
+        <div className="w-4 h-3 rounded-sm relative z-10" style={{ background: 'linear-gradient(135deg,#dfe5ec,#b8c2d1)', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
           <div className="absolute inset-0 rounded-sm opacity-40" style={{ background: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 3px)' }} />
         </div>
         <div className="relative z-10 self-end"><ProviderLogo provider={card.provider} size="sm" /></div>
@@ -748,11 +731,11 @@ function CardListItem({ card, onOpen, locked = false }) {
 }
 
 // ─── Card Detail Modal ────────────────────────────────────────────────────────
-function CardDetailModal({ card, flipped, onFlip, onClose, onCopy }) {
+function CardDetailModal({ card, flipped, onFlip, onClose, onCopy, isPreview = false }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-      <div className="modal-slide-up relative bg-white rounded-t-3xl border-t border-border p-5 pb-10 max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
+      <div className="modal-slide-up relative bg-white rounded-t-3xl border-t border-border p-5 pb-10 max-h-[90vh] overflow-y-auto shadow-panel" onClick={(e) => e.stopPropagation()}>
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-border/60" />
         <div className="flex items-center justify-between mb-5 mt-3">
           <div>
@@ -764,36 +747,37 @@ function CardDetailModal({ card, flipped, onFlip, onClose, onCopy }) {
           </button>
         </div>
         <div className="mb-6"><VirtualCardVisual card={card} flipped={flipped} onFlip={onFlip} /></div>
+        {isPreview && <div className="mb-4 rounded-2xl border border-brand/20 bg-brand-dim px-4 py-3 text-[12px] font-medium text-brand">This is a display-only sample card. Its details are for preview purposes only.</div>}
+        <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold mb-2 px-1">Card Information</p>
         <div className="space-y-2">
           {[
-            { label: 'Card Number', value: formatCardNumber(card.card_number), displayValue: maskCardNumber(card.card_number), accent: 'bg-violet-50 border-violet-100' },
-            { label: 'Card Holder', value: card.name, accent: 'bg-pink-50 border-pink-100' },
-            { label: 'Expiry Date', value: card.expiry, accent: 'bg-emerald-50 border-emerald-100' },
-            { label: 'CVV', value: card.cvv, displayValue: '•••', accent: 'bg-amber-50 border-amber-100' },
-            { label: 'Bank', value: card.bank, accent: 'bg-sky-50 border-sky-100' },
-            { label: 'Network', value: card.provider, accent: 'bg-fuchsia-50 border-fuchsia-100' },
+            { label: 'Card Number', value: formatCardNumber(card.card_number), displayValue: maskCardNumber(card.card_number) },
+            { label: 'Card Holder', value: card.name },
+            { label: 'Expiry Date', value: card.expiry },
+            { label: 'CVV', value: card.cvv, displayValue: '•••' },
+            { label: 'Bank', value: card.bank },
+            { label: 'Network', value: card.provider },
           ].map((item) => (
-            <div key={item.label} className={`flex items-center justify-between border rounded-xl px-4 py-3 ${item.accent}`}>
+            <div key={item.label} className="flex items-center justify-between border border-border bg-surface rounded-xl px-4 py-3">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{item.label}</p>
                 <p className="text-[14px] font-bold text-foreground mt-0.5 font-mono">{item.displayValue || item.value}</p>
               </div>
-              <CopyButton value={item.value || ''} label={item.label} />
+              {!isPreview && <CopyButton value={item.value || ''} label={item.label} />}
             </div>
           ))}
         </div>
-        <button
+        {!isPreview && <button
           onClick={() => {
             const text = `Card: ${formatCardNumber(card.card_number)}\nName: ${card.name}\nExpiry: ${card.expiry}\nCVV: ${card.cvv}\nBank: ${card.bank}`
             navigator.clipboard.writeText(text).catch(() => { })
             onCopy(text, 'All details')
           }}
-          className="mt-5 w-full py-3.5 rounded-2xl font-black text-[14px] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg text-white"
-          style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}
+          className="mt-5 w-full py-3.5 rounded-2xl font-black text-[14px] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg text-primary-foreground bg-primary"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-          Copy All Details
-        </button>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2 2 2 0 00-2 2z" /></svg>
+          Share Card Details
+        </button>}
       </div>
     </div>
   )
@@ -911,23 +895,23 @@ function CardsPage({ currentUser, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+              <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
             </div>
             <span className="font-bold text-foreground">VCardz</span>
           </div>
           {!isGuest && (
-            <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full ${userPlan === 'max' ? 'bg-amber-100 text-amber-600 border border-amber-200' : userPlan === 'pro' ? 'bg-brand-dim text-brand border border-brand/20' : 'bg-surface-2 text-muted-foreground border border-border'}`}>
+            <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full ${userPlan === 'max' ? 'bg-amber-100 text-amber-700 border border-amber-200' : userPlan === 'pro' ? 'bg-brand-dim text-brand border border-brand/20' : 'bg-surface-2 text-muted-foreground border border-border'}`}>
               {userPlan} plan
             </span>
           )}
         </div>
       </header>
 
-      <main className="flex-1 max-w-md mx-auto w-full px-4 pt-4 pb-24">
+      <main className="flex-1 max-w-md mx-auto w-full px-4 pt-4 pb-28">
         <div className="relative mb-4">
           <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, bank, provider..."
@@ -936,11 +920,10 @@ function CardsPage({ currentUser, onNavigate }) {
 
         <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-none">
           {CATEGORIES.map((cat) => {
-            const cc = CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.Other
             const isActive = selectedCategory === cat
             return (
               <button key={cat} onClick={() => setSelectedCategory(cat)}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all duration-200 border ${isActive ? `${cc.bg} ${cc.text} ${cc.border} shadow-sm scale-105` : 'bg-white border-border text-muted-foreground hover:scale-105'}`}>
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all duration-200 border ${isActive ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-white border-border text-muted-foreground'}`}>
                 {cat}
               </button>
             )
@@ -956,22 +939,32 @@ function CardsPage({ currentUser, onNavigate }) {
           </div>
         )}
 
+        <section className="mb-5 rounded-2xl border border-brand/15 bg-white/70 p-3 shadow-soft">
+          <div className="flex items-center justify-between px-1 pb-2">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-brand">Card preview</p>
+              <p className="text-[12px] text-muted-foreground">Example details and layout</p>
+            </div>
+            <span className="rounded-full bg-brand-dim px-2.5 py-1 text-[10px] font-bold text-brand">DEMO</span>
+          </div>
+          <CardListItem card={PREVIEW_CARD} onOpen={(c) => { setSelectedCard(c); setFlipped(false) }} />
+        </section>
+
         {!isGuest && claimed.length === 0 && !loading && (
-          <div className="bg-gradient-to-br from-violet-50 to-pink-50 border border-brand/20 rounded-2xl p-6 text-center mb-4">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-brand flex items-center justify-center mb-3">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0v3.75m0-3.75h5.25" /></svg>
+          <div className="bg-surface border border-border rounded-2xl p-6 text-center mb-4">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-primary flex items-center justify-center mb-3">
+              <svg className="w-7 h-7 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0v3.75m0-3.75h5.25" /></svg>
             </div>
             <h3 className="font-black text-[16px] text-foreground mb-1">Get Your Free Card</h3>
             <p className="text-[12px] text-muted-foreground mb-4">Claim a free virtual card with a random USD balance ($1 - $15)</p>
             <button
               onClick={handleClaimFreeCard}
               disabled={claiming}
-              className="w-full py-3 rounded-xl font-bold text-[14px] text-white hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
-              style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)' }}
+              className="w-full py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
             >
               {claiming
                 ? <span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Claiming...</span>
-                : '🎁 Claim Free Card'}
+                : 'Claim Free Card'}
             </button>
           </div>
         )}
@@ -1005,6 +998,7 @@ function CardsPage({ currentUser, onNavigate }) {
 
       {selectedCard && (
         <CardDetailModal card={selectedCard} flipped={flipped} onFlip={() => setFlipped(!flipped)} onClose={() => setSelectedCard(null)}
+          isPreview={selectedCard.id === PREVIEW_CARD.id}
           onCopy={(_, l) => showToast(`${l} copied!`)} />
       )}
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
@@ -1013,7 +1007,7 @@ function CardsPage({ currentUser, onNavigate }) {
   )
 }
 
-// ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────────────
+// ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────��───────
 function PricingPage({ currentUser, onNavigate }) {
   const [selectedPack, setSelectedPack] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('inr')
@@ -1073,7 +1067,7 @@ function PricingPage({ currentUser, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center h-14">
           <button onClick={() => onNavigate('landing')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
@@ -1082,14 +1076,14 @@ function PricingPage({ currentUser, onNavigate }) {
         </div>
       </header>
 
-      <main className="flex-1 max-w-md mx-auto w-full px-4 py-5 pb-24">
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-5 pb-28">
         <p className="text-muted-foreground text-[13px] mb-5 leading-relaxed text-center">
           Choose a pack to assign a virtual card loaded with your chosen **USD Balance ($)**!
         </p>
 
         <div className="space-y-3.5">
           {V2_PACKS.map((p) => (
-            <div key={p.id} className="bg-white border border-border rounded-2xl p-4 flex items-center justify-between shadow-sm hover:border-brand/50 transition-all">
+            <div key={p.id} className="bg-white border border-border rounded-2xl p-4 flex items-center justify-between shadow-soft hover:border-brand/40 transition-all">
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-black text-[16px] text-foreground">{p.name}</p>
@@ -1102,7 +1096,7 @@ function PricingPage({ currentUser, onNavigate }) {
                 <p className="text-[18px] font-black text-foreground">₹{p.price_inr}</p>
                 <button
                   onClick={() => { setSelectedPack(p); setPaymentMethod('inr') }}
-                  className="px-3.5 py-1.5 rounded-xl bg-brand text-white font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full"
+                  className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full"
                 >
                   Buy ₹
                 </button>
@@ -1111,7 +1105,7 @@ function PricingPage({ currentUser, onNavigate }) {
                     setPaymentMethod('stars')
                     window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#2aabee] text-white font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-600 text-white font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
                 >
                   ⭐ {p.stars} Buy
                 </button>
@@ -1123,8 +1117,8 @@ function PricingPage({ currentUser, onNavigate }) {
 
       {/* Payment Modal */}
       {selectedPack && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-panel space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div>
                 <h3 className="font-black text-[16px] text-foreground">Confirm Purchase</h3>
@@ -1161,31 +1155,31 @@ function PricingPage({ currentUser, onNavigate }) {
 
       {/* Telegram Stars success card modal */}
       {telegramCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-panel space-y-4">
             <div className="text-center">
               <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-3">
                 <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
               </div>
-              <h3 className="font-black text-[18px] text-foreground">Payment Successful! 🎉</h3>
+              <h3 className="font-black text-[18px] text-foreground">Payment Successful</h3>
               <p className="text-[12px] text-muted-foreground mt-1">{telegramCard.plan} plan activated via Telegram Stars</p>
             </div>
 
-            <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-5 text-white relative overflow-hidden">
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.14) 0%,transparent 50%)' }} />
-              <p className="text-[10px] text-white/60 uppercase tracking-widest font-bold relative z-10">VCardz — Temp Card</p>
+            <div className="bg-gradient-to-br from-[#2c3a52] via-[#212c3f] to-[#141b28] rounded-2xl p-5 text-white relative overflow-hidden">
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.10) 0%,transparent 55%)' }} />
+              <p className="text-[10px] text-white/55 uppercase tracking-widest font-bold relative z-10">VCardz — Temp Card</p>
               <p className="font-mono text-white text-[18px] tracking-[0.15em] font-bold mt-4 relative z-10">{telegramCard.temp_card || '•••• •••• •••• ••••'}</p>
               <div className="flex items-center justify-between mt-5 relative z-10">
                 <div>
-                  <p className="text-[8px] text-white/40 uppercase tracking-widest">Plan</p>
+                  <p className="text-[8px] text-white/35 uppercase tracking-widest">Plan</p>
                   <p className="text-[13px] text-white font-bold">{telegramCard.plan}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] text-white/40 uppercase tracking-widest">Status</p>
-                  <p className="text-[13px] text-emerald-300 font-bold">{telegramCard.status} ✅</p>
+                  <p className="text-[8px] text-white/35 uppercase tracking-widest">Status</p>
+                  <p className="text-[13px] text-emerald-300 font-bold">{telegramCard.status}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] text-white/40 uppercase tracking-widest">Stars</p>
+                  <p className="text-[8px] text-white/35 uppercase tracking-widest">Stars</p>
                   <p className="text-[13px] text-white font-bold">{telegramCard.stars_paid} ⭐</p>
                 </div>
               </div>
@@ -1193,7 +1187,7 @@ function PricingPage({ currentUser, onNavigate }) {
 
             <button
               onClick={() => setTelegramCard(null)}
-              className="w-full py-3 rounded-xl bg-brand text-white font-bold text-[14px] hover:opacity-90 transition-opacity"
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-[14px] hover:opacity-90 transition-opacity"
             >
               View My Cards
             </button>
@@ -1207,8 +1201,16 @@ function PricingPage({ currentUser, onNavigate }) {
   )
 }
 
+const APP_THEMES = [
+  { id: 'blue', label: 'Mist', description: 'Soft blue-grey', swatches: ['#EEF3F8', '#5F7894', '#DCE5ED'] },
+  { id: 'lavender', label: 'Lavender', description: 'Quiet lilac', swatches: ['#F3F1F8', '#817A9C', '#E3DFEE'] },
+  { id: 'sage', label: 'Sage', description: 'Calm green', swatches: ['#F0F5F1', '#708D7B', '#D9E6DC'] },
+  { id: 'sand', label: 'Sand', description: 'Warm neutral', swatches: ['#F7F3ED', '#9A8268', '#E9DED0'] },
+  { id: 'graphite', label: 'Graphite', description: 'Cool charcoal', swatches: ['#EEF0F2', '#596572', '#D8DEE4'] },
+]
+
 // ─── ACCOUNT PAGE ─────────────────────────────────────────────────────────────
-function AccountPage({ currentUser, onLogout, onNavigate }) {
+function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange }) {
   const [showAdminInput, setShowAdminInput] = useState(false)
   const [adminCodeInput, setAdminCodeInput] = useState('')
   const name = currentUser?.name || 'Guest'
@@ -1216,7 +1218,7 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
   const planName = currentUser?.plan || 'free'
   const initials = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'G'
   const currentPack = V2_PACKS.find((p) => p.id === planName)
-  const planColors = { free: 'bg-surface-2 text-muted-foreground border-border', spark: 'bg-brand-dim text-brand border-brand/20', orbit: 'bg-brand-dim text-brand border-brand/20', nova: 'bg-brand-dim text-brand border-brand/20', galaxy: 'bg-amber-100 text-amber-600 border-amber-200', cosmos: 'bg-amber-100 text-amber-600 border-amber-200', infinity: 'bg-amber-100 text-amber-600 border-amber-200' }
+  const planColors = { free: 'bg-surface-2 text-muted-foreground border-border', spark: 'bg-brand-dim text-brand border-brand/20', orbit: 'bg-brand-dim text-brand border-brand/20', nova: 'bg-brand-dim text-brand border-brand/20', galaxy: 'bg-amber-100 text-amber-700 border-amber-200', cosmos: 'bg-amber-100 text-amber-700 border-amber-200', infinity: 'bg-amber-100 text-amber-700 border-amber-200' }
 
   const handleAdmin = async () => {
     if (adminCodeInput.length !== 6) return
@@ -1238,21 +1240,21 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
-        <div className="max-w-md mx-auto px-4 flex items-center h-14">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
-            </div>
+      <header className="sticky top-0 z-40 px-3 pt-3">
+        <div className="max-w-md mx-auto flex items-center gap-2">
+          <div className="ios-icon-well w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
+            <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+          </div>
+          <div className="ios-title-box rounded-2xl px-4 py-2.5">
             <span className="font-bold text-foreground">My Account</span>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-md mx-auto w-full px-4 py-5 pb-24 space-y-4">
-        <div className="bg-white border border-border rounded-2xl p-5 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-brand flex items-center justify-center shrink-0">
-            <span className="text-white font-black text-[18px]">{initials}</span>
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-5 pb-28 space-y-4">
+        <div className="bg-white border border-border rounded-2xl p-5 flex items-center gap-4 shadow-soft">
+          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shrink-0">
+            <span className="text-primary-foreground font-black text-[18px]">{initials}</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-[16px] text-foreground truncate">{name}</p>
@@ -1262,11 +1264,11 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => onNavigate('cards')} className="bg-brand text-white rounded-2xl p-4 flex flex-col items-start gap-2 hover:opacity-90 transition-opacity shadow-sm">
+          <button onClick={() => onNavigate('cards')} className="bg-primary text-primary-foreground rounded-2xl p-4 flex flex-col items-start gap-2 hover:opacity-90 transition-opacity shadow-sm">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
             <div>
               <p className="font-bold text-[13px]">Browse Cards</p>
-              <p className="text-[11px] text-white/70">{currentPack ? `$${currentPack.balance_usd} USD balance` : 'Free card'}</p>
+              <p className="text-[11px] text-primary-foreground/70">{currentPack ? `$${currentPack.balance_usd} USD balance` : 'Free card'}</p>
             </div>
           </button>
           <button onClick={() => onNavigate('pricing')} className="bg-surface border border-border rounded-2xl p-4 flex flex-col items-start gap-2 hover:border-brand/40 transition-colors">
@@ -1277,6 +1279,27 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
             </div>
           </button>
         </div>
+
+        <section className="bg-white border border-border rounded-2xl p-4 shadow-soft">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="font-semibold text-[13px] text-foreground">Appearance</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Choose a soft iOS-inspired color theme</p>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-brand">{APP_THEMES.find((item) => item.id === theme)?.label}</span>
+          </div>
+          <div className="grid grid-cols-5 gap-2">
+            {APP_THEMES.map((item) => (
+              <button key={item.id} type="button" onClick={() => onThemeChange(item.id)} aria-label={`Use ${item.label} theme`} aria-pressed={theme === item.id}
+                className={`theme-choice rounded-2xl p-1.5 border text-left transition-all ${theme === item.id ? 'border-brand ring-2 ring-brand/20 scale-[1.03]' : 'border-border hover:border-brand/40'}`}>
+                <span className="flex h-9 overflow-hidden rounded-xl border border-black/5">
+                  {item.swatches.map((color) => <span key={color} className="flex-1" style={{ backgroundColor: color }} />)}
+                </span>
+                <span className="mt-1 block truncate text-center text-[9px] font-bold text-foreground">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
         <div className="bg-white border border-border rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border"><p className="font-semibold text-[13px] text-foreground">Account Details</p></div>
@@ -1313,7 +1336,7 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
                   className="flex-1 bg-surface border border-border rounded-xl px-3 py-2.5 text-[14px] font-mono tracking-widest text-center text-foreground focus:outline-none focus:border-brand/60 transition-colors"
                   onKeyDown={(e) => e.key === 'Enter' && handleAdmin()} />
                 <button onClick={handleAdmin} disabled={adminCodeInput.length !== 6}
-                  className="px-4 py-2.5 rounded-xl bg-brand text-white font-bold text-[13px] hover:opacity-90 disabled:opacity-40 transition-all">
+                  className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-[13px] hover:opacity-90 disabled:opacity-40 transition-all">
                   Enter
                 </button>
               </div>
@@ -1332,7 +1355,7 @@ function AccountPage({ currentUser, onLogout, onNavigate }) {
   )
 }
 
-// ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
+// ─── ADMIN PANEL ──────────────────────────────────────────────────��───────────
 function AdminPanelPage({ onNavigate }) {
   const token = getAdminToken()
   const [activeTab, setActiveTab] = useState('overview')
@@ -1991,7 +2014,15 @@ function AdminPanelPage({ onNavigate }) {
 function App() {
   const [view, setView] = useState('landing')
   const [currentUser, setCurrentUser] = useState(null)
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('vcz_theme') || 'blue' } catch { return 'blue' }
+  })
   const [booting, setBooting] = useState(true)
+
+  useEffect(() => {
+    try { localStorage.setItem('vcz_theme', theme) } catch { }
+    document.documentElement.dataset.theme = theme
+  }, [theme])
 
   useEffect(() => {
     try {
@@ -2000,6 +2031,12 @@ function App() {
     } catch { }
     setBooting(false)
   }, [])
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.theme = theme
+    try { localStorage.setItem('vcz_theme', theme) } catch { }
+  }, [theme])
 
   const navigate = useCallback((v) => setView(v), [])
 
@@ -2029,14 +2066,14 @@ function App() {
   if (booting) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-sm text-muted-foreground">Loading…</p></div>
 
   return (
-    <>
+    <div className="app-shell" data-theme={theme}>
       {view === 'landing' && <LandingPage isLoggedIn={!!currentUser} onNavigate={navigate} />}
       {view === 'auth' && <AuthPage onLogin={handleLogin} onAdminLogin={handleAdminLogin} onNavigate={navigate} />}
       {view === 'cards' && <CardsPage currentUser={currentUser} onNavigate={navigate} />}
       {view === 'pricing' && <PricingPage currentUser={currentUser} onNavigate={navigate} />}
-      {view === 'account' && <AccountPage currentUser={currentUser} onLogout={handleLogout} onNavigate={navigate} />}
+      {view === 'account' && <AccountPage currentUser={currentUser} onLogout={handleLogout} onNavigate={navigate} theme={theme} onThemeChange={setTheme} />}
       {view === 'admin' && <AdminPanelPage onNavigate={navigate} />}
-    </>
+    </div>
   )
 }
 
