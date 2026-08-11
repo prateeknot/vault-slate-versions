@@ -507,6 +507,25 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
     onLogin({ email: 'guest@vcardz.app', name: 'Guest User', plan: 'free', isGuest: true })
   }
 
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true)
+    setError('')
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      })
+      if (error) throw error
+    } catch (err) {
+      console.error('Google sign-in error:', err)
+      setGoogleNotice(true)
+      setTimeout(() => setGoogleNotice(false), 4200)
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
   const inputBase = 'w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/15 transition-colors'
 
   return (
@@ -605,11 +624,11 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
             </p>
           </form>
           <div className="px-5 pb-5">
-            <button type="button" onClick={() => { setGoogleNotice(true); setTimeout(() => setGoogleNotice(false), 3200) }} className="glass-secondary w-full flex items-center justify-center gap-3 py-3 rounded-2xl text-[13px] font-bold text-foreground">
+            <button type="button" onClick={handleGoogleLogin} disabled={googleLoading} className="glass-secondary w-full flex items-center justify-center gap-3 py-3 rounded-2xl text-[13px] font-bold text-foreground disabled:opacity-60">
               <span className="google-mark" aria-hidden="true">G</span>
-              Continue with Google
+              {googleLoading ? 'Redirecting to Google…' : 'Continue with Google'}
             </button>
-            {googleNotice && <p role="status" className="mt-2 text-center text-[11px] text-muted-foreground">Google sign-in will be available soon.</p>}
+            {googleNotice && <p role="status" className="mt-2 text-center text-[11px] text-red-500">Google sign-in failed. Is the Google provider enabled in Supabase? (Settings → Authentication → Providers)</p>}
           </div>
         </div>
 
@@ -2032,6 +2051,45 @@ function App() {
     setBooting(false)
   }, [])
 
+  const applySupabaseUser = useCallback(async (authUser) => {
+    let plan = 'free'
+    let displayName = authUser.user_metadata?.name || authUser.user_metadata?.full_name || ''
+    try {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('plan_type, display_name')
+        .eq('id', authUser.id)
+        .maybeSingle()
+      if (prof?.plan_type) plan = String(prof.plan_type).toLowerCase()
+      if (prof?.display_name) displayName = prof.display_name
+    } catch { }
+    const user = {
+      email: authUser.email || '',
+      name: displayName || (authUser.email || '').split('@')[0] || 'User',
+      plan,
+    }
+    setCurrentUser(user)
+    try { sessionStorage.setItem('vcz_user', JSON.stringify(user)) } catch { }
+    setView('cards')
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return
+      if (data.session?.user) applySupabaseUser(data.session.user)
+      else setBooting(false)
+    })
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return
+      if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+        applySupabaseUser(session.user)
+        setBooting(false)
+      }
+    })
+    return () => { active = false; sub?.subscription.unsubscribe() }
+  }, [applySupabaseUser])
+
   useEffect(() => {
     const root = document.documentElement
     root.dataset.theme = theme
@@ -2060,6 +2118,7 @@ function App() {
   const handleLogout = useCallback(() => {
     setCurrentUser(null)
     try { sessionStorage.removeItem('vcz_user') } catch { }
+    try { supabase.auth.signOut() } catch { }
     setView('landing')
   }, [])
 
