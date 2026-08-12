@@ -24,6 +24,9 @@ The current app version is displayed in Settings (Account page) and defined as `
 
 | **v6** | S11d (current) | **UI glass fix** — frosted-glass blur now lives only on the content box (`max-w-md`), not the full-width header/nav wrapper, so the blur region exactly matches the rounded boxes (no more full-width blur leaking past on wide screens). Mobile look preserved; desktop now shows clean centered rounded glass bars. |
 
+### v6.0.1 — UI glass fix round 2
+- Header frosted-glass pill now applies at **ALL screen sizes** — same as the bottom nav (previously desktop-only via the `≥641px` media query; mobile header kept the old full-width frosted bar). Now the top box matches the bottom box: rounded pill + glass on the `max-w-md` content box everywhere, wrapper fully transparent. No media query left in the header/nav glass rules.
+
 ## How to bump a version
 1. Create a new git tag: `git tag vX.0.0 && git push origin vX.0.0`
 2. Bump `APP_VERSION` in `src/App.jsx`

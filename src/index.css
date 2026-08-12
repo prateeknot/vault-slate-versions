@@ -264,25 +264,22 @@ main > *:nth-child(5) { animation-delay: 180ms; }
   backdrop-filter: blur(28px) saturate(135%);
   -webkit-backdrop-filter: blur(28px) saturate(135%);
 }
-/* User-facing headers: same confinement, but ONLY on wide screens — on mobile the
-   header is already full-width (max-w-md ≥ viewport) so the original full-width
-   frosted bar stays. On desktop the full-width wrapper blur leaks past the centered
-   content, so confine the glass to the content box pill there. */
-@media (min-width: 641px) {
-  .app-shell .app-header {
-    background: transparent !important;
-    border: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-  .app-shell .app-header > .max-w-md {
-    background: rgba(246,249,251,.72);
-    border: 1px solid rgba(255,255,255,.9);
-    border-radius: 1.4rem;
-    box-shadow: 0 8px 24px rgba(75,98,120,.08), inset 0 1px 0 rgba(255,255,255,.85);
-    backdrop-filter: blur(28px) saturate(135%);
-    -webkit-backdrop-filter: blur(28px) saturate(135%);
-  }
+/* User-facing headers: same confinement as the bottom nav — frosted glass lives
+   ONLY on the rounded content box (max-w-md) at ALL sizes. On mobile the pill is
+   full-width, on desktop the centered pill — blur never leaks past the box. */
+.app-shell .app-header {
+  background: transparent !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.app-shell .app-header > .max-w-md {
+  background: rgba(246,249,251,.72);
+  border: 1px solid rgba(255,255,255,.9);
+  border-radius: 1.4rem;
+  box-shadow: 0 8px 24px rgba(75,98,120,.08), inset 0 1px 0 rgba(255,255,255,.85);
+  backdrop-filter: blur(28px) saturate(135%);
+  -webkit-backdrop-filter: blur(28px) saturate(135%);
 }
 .ios-header-box, .ios-title-box {
   background: rgba(255,255,255,.62);
