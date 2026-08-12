@@ -605,11 +605,8 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
 
       <main className="flex-1 max-w-md mx-auto w-full px-4 py-8 pb-28 space-y-4">
         {/* User card */}
-        <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-soft">
-          <button
-            onClick={() => setMode(mode === 'user' ? 'user' : 'user')}
-            className="w-full flex items-center gap-3 px-5 py-4 bg-white"
-          >
+<div className="rounded-2xl border border-border bg-white overflow-hidden shadow-soft">
+          <div className="w-full flex items-center gap-3 px-5 py-4 bg-white">
             <div className="w-9 h-9 rounded-xl bg-brand-dim flex items-center justify-center shrink-0">
               <svg className="w-5 h-5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
             </div>
@@ -617,7 +614,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
               <p className="text-[14px] font-bold text-foreground">User Account</p>
               <p className="text-[12px] text-muted-foreground">Sign in or create a new account</p>
             </div>
-          </button>
+          </div>
 
           <div className="px-5 pb-1">
             <div className="flex bg-surface rounded-xl p-1 border border-border">
@@ -772,12 +769,11 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
 }
 
 // ─── Card List Item ───────────────────────────────────────────────────────────
-function CardListItem({ card, onOpen, locked = false }) {
+function CardListItem({ card, onOpen }) {
   const catColor = CATEGORY_COLORS[card.category] ?? CATEGORY_COLORS.Other
   return (
     <button
       onClick={() => onOpen(card)}
-      disabled={locked}
       className="card-item-glow w-full text-left bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3.5 active:scale-[0.98] transition-all duration-200 hover:shadow-soft"
       style={{ ['--glow-color']: CARD_GLOW[card.provider] }}
     >
@@ -872,7 +868,6 @@ function CardsPage({ currentUser, onNavigate }) {
   const [selectedCard, setSelectedCard] = useState(null)
   const [flipped, setFlipped] = useState(false)
   const [toast, setToast] = useState(null)
-  const [available, setAvailable] = useState([])
   const [claimed, setClaimed] = useState([])
   const [planLimit, setPlanLimit] = useState(3)
   const [loading, setLoading] = useState(true)
@@ -916,7 +911,6 @@ function CardsPage({ currentUser, onNavigate }) {
     expiry: c.expiry,
     cvv: c.cvv,
     is_active: true,
-    unlocked: true,
     tier: c.tier || 'free',
     balance_usd: c.balance_usd ?? TIER_BALANCES[c.tier || 'free'] ?? 0,
     created_at: c.created_at,
@@ -925,7 +919,6 @@ function CardsPage({ currentUser, onNavigate }) {
   const fetchData = useCallback(async () => {
     try {
       if (isGuest) {
-        setAvailable([])
         setClaimed([])
         setPlanLimit(3)
         return
@@ -938,7 +931,6 @@ function CardsPage({ currentUser, onNavigate }) {
       const rows = normalizeCards(cardsRes.data)
       setPlanLimit(overview.card_limit ?? 1)
       setClaimed(rows)
-      setAvailable([])
     } catch (err) {
       console.error('Fetch error:', err)
       showToast('Could not load cards', 'error')
@@ -957,10 +949,6 @@ function CardsPage({ currentUser, onNavigate }) {
     return () => supabase.removeChannel(channel)
   }, [isGuest, fetchData])
 
-  const visibleAvailable = available.filter((c) =>
-    (selectedCategory === 'All' || c.category === selectedCategory) &&
-    (!search || (c.bank || '').toLowerCase().includes(search.toLowerCase()) || (c.provider || '').toLowerCase().includes(search.toLowerCase()) || (c.category || '').toLowerCase().includes(search.toLowerCase()))
-  )
   const visibleClaimed = claimed.filter((c) =>
     (selectedCategory === 'All' || c.category === selectedCategory) &&
     (!search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.bank || '').toLowerCase().includes(search.toLowerCase()) || (c.provider || '').toLowerCase().includes(search.toLowerCase()))
@@ -1059,20 +1047,9 @@ function CardsPage({ currentUser, onNavigate }) {
           {visibleClaimed.map((card) => (
             <CardListItem key={card.id} card={card} onOpen={(c) => { setSelectedCard(c); setFlipped(false) }} />
           ))}
-          {visibleAvailable.map((card) => (
-            <div key={card.id} className="rounded-2xl border border-border overflow-hidden">
-              <CardListItem card={card} locked />
-              <div className="px-4 pb-3 bg-white border-t border-border/60 -mt-2 pt-2.5">
-                <button onClick={() => onNavigate('pricing')}
-                  className="w-full py-2.5 rounded-xl font-bold text-[13px] transition-all active:scale-[0.98] bg-surface border border-border text-muted-foreground">
-                  {isGuest ? 'View plans to unlock' : 'Locked — upgrade your plan'}
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
 
-        {visibleClaimed.length === 0 && visibleAvailable.length === 0 && (
+        {visibleClaimed.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center mb-4">
               <svg className="w-6 h-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
@@ -1096,7 +1073,6 @@ function CardsPage({ currentUser, onNavigate }) {
 // ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────��───────
 function PricingPage({ currentUser, onNavigate }) {
   const [selectedPack, setSelectedPack] = useState(null)
-  const [paymentMethod, setPaymentMethod] = useState('inr')
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
   const [telegramCard, setTelegramCard] = useState(null)
@@ -1180,17 +1156,14 @@ function PricingPage({ currentUser, onNavigate }) {
 
               <div className="text-right space-y-1.5">
                 <p className="text-[18px] font-black text-foreground">₹{p.price_inr}</p>
-                <button
-                  onClick={() => { setSelectedPack(p); setPaymentMethod('inr') }}
+<button
+                  onClick={() => { setSelectedPack(p) }}
                   className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full"
                 >
                   Buy ₹
                 </button>
                 <button
-                  onClick={() => {
-                    setPaymentMethod('stars')
-                    window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')
-                  }}
+                  onClick={() => window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')}
                   className="px-3.5 py-1.5 rounded-xl bg-slate-600 text-white font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
                 >
                   ⭐ {p.stars} Buy
@@ -1485,7 +1458,6 @@ function AdminPanelPage({ onNavigate }) {
   const [sessionExpired, setSessionExpired] = useState(false)
   const [userCards, setUserCards] = useState([])
   const [userCardsUser, setUserCardsUser] = useState(null)
-  const [assignTierFor, setAssignTierFor] = useState(null)
   const [packEditing, setPackEditing] = useState(null)
   const [editingPackForm, setEditingPackForm] = useState({})
   const [ordersLoading, setOrdersLoading] = useState(false)
@@ -1504,15 +1476,17 @@ function AdminPanelPage({ onNavigate }) {
       if (parts.length < 2) continue
       const cardNum = parts[0]
       if (cardNum.length < 12) continue
+      const tokens = parts.slice(1).flatMap((t) => t.split('/')).map((t) => t.replace(/\D/g, '')).filter(Boolean)
       let month = '', year = '', cvv = ''
-      const rest = parts.slice(1)
-      if (rest.length === 1 && rest[0].length === 6) { month = rest[0].slice(0, 2); year = rest[0].slice(2, 4); cvv = '' }
-      else if (rest.length === 2) {
-        if (rest[0].length === 4) { month = rest[0].slice(0, 2); year = rest[0].slice(2, 4); cvv = rest[1] }
-        else if (rest[0].length === 2 && rest[1].length >= 2) { month = rest[0]; year = rest[1].slice(0, 2); cvv = rest[1].slice(2) || '' }
-        else { month = rest[0]; year = rest[1]; cvv = '' }
-      } else if (rest.length >= 3) { month = rest[0]; year = rest[1]; cvv = rest[2] }
-      if (!month || !year) continue
+      if (tokens.length === 1) {
+        if (tokens[0].length >= 4) { month = tokens[0].slice(0, 2); year = tokens[0].slice(2, 4) }
+      } else if (tokens.length === 2) {
+        if (tokens[0].length === 4) { month = tokens[0].slice(0, 2); year = tokens[0].slice(2, 4); cvv = tokens[1] }
+        else { month = tokens[0]; year = tokens[1] }
+      } else {
+        month = tokens[0]; year = tokens[1]; cvv = tokens.slice(2).join('')
+      }
+      if (!/^\d{2}$/.test(month) || !/^\d{2}$/.test(year)) continue
       parsed.push({ card_number: cardNum, expiry: `${month}/${year}`, cvv: cvv || String(Math.floor(100 + Math.random() * 900)) })
     }
     return parsed
@@ -1640,15 +1614,6 @@ function AdminPanelPage({ onNavigate }) {
       showToast('Card status updated')
       fetchAll()
     } catch (err) { showToast('Failed: ' + err.message, 'error') }
-  }
-
-  const changePlan = async (userId, newPlan) => {
-    try {
-      const { error } = await supabase.rpc('admin_user_plan', { p_token: token, p_id: userId, p_plan: newPlan })
-      if (error) throw error
-      showToast(`Plan updated to ${newPlan}`)
-      fetchAll()
-    } catch (err) { showToast('User plan update failed: ' + err.message, 'error') }
   }
 
   const savePlanLimits = async () => {
@@ -1821,7 +1786,6 @@ function AdminPanelPage({ onNavigate }) {
       const { error } = await supabase.rpc('admin_assign_card', { p_token: token, p_user_id: userCardsUser.id, p_tier: tier })
       if (error) throw error
       showToast(`Assigned ${tier} card`)
-      setAssignTierFor(null)
       viewUserCards(userCardsUser)
       fetchInventory()
       fetchAll()
@@ -1853,8 +1817,6 @@ function AdminPanelPage({ onNavigate }) {
     totalCards: cards.length,
     activeCards: cards.filter((c) => c.is_active).length,
     totalUsers,
-    activeUsers: totalUsers,
-    planDist: { free: 0, pro: 0, max: 0 },
   }
 
   const availableCards = inventory.reduce((s, i) => s + (i.available || 0), 0)
@@ -2470,7 +2432,7 @@ function AdminPanelPage({ onNavigate }) {
                 <h3 className="font-bold text-[15px] text-foreground">Cards of {userCardsUser.name || userCardsUser.email}</h3>
                 <p className="text-[11px] text-muted-foreground">{userCards.length} card(s) owned</p>
               </div>
-              <button onClick={() => { setUserCardsUser(null); setAssignTierFor(null) }} className="p-1.5 rounded-lg text-muted-foreground hover:bg-surface transition-colors">
+              <button onClick={() => { setUserCardsUser(null) }} className="p-1.5 rounded-lg text-muted-foreground hover:bg-surface transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -2491,8 +2453,8 @@ function AdminPanelPage({ onNavigate }) {
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2">Assign a card of tier</p>
               <div className="flex flex-wrap gap-1.5">
                 {ALL_TIERS.map((t) => (
-                  <button key={t.id} onClick={() => assignTierCard(t.id)} disabled={assignTierFor === t.id} className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-surface border border-border text-foreground hover:border-brand/50 transition-colors disabled:opacity-50 capitalize">
-                    {assignTierFor === t.id ? '...' : t.label.split(' ')[0]}
+                  <button key={t.id} onClick={() => assignTierCard(t.id)} className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-surface border border-border text-foreground hover:border-brand/50 transition-colors capitalize">
+                    {t.label.split(' ')[0]}
                   </button>
                 ))}
               </div>
@@ -2574,12 +2536,6 @@ function App() {
     })
     return () => { active = false; sub?.subscription.unsubscribe() }
   }, [applySupabaseUser])
-
-  useEffect(() => {
-    const root = document.documentElement
-    root.dataset.theme = theme
-    try { localStorage.setItem('vcz_theme', theme) } catch { }
-  }, [theme])
 
   const navigate = useCallback((v) => setView(v), [])
 
