@@ -12,7 +12,7 @@ Temporary virtual card management web app. Admin lists virtual cards in tier poo
 
 - Sign up / sign in → get a virtual card with a USD balance
 - Card tier pools with random USD balances (Free $0 → Infinity $82)
-- Top-Up Packs (INR price → USD card balance) with UPI-mock + Telegram Stars checkout
+- Top-Up Packs (INR price → USD card balance) — buy via Telegram bot (plan QR + email → owner approves → plan upgrades instantly; no gateway/commission)
 - iOS-inspired liquid-glass UI with 5 color themes: **Mist, Lavender, Sage, Sand, Graphite** (switchable in Account)
 - Animated flip cards, shimmer, bottom-nav, card detail modal with one-tap copy
 - Full admin panel: overview stats, card CRUD + bulk add, user management + free-card assignment, plan limits, admin codes

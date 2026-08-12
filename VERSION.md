@@ -27,6 +27,18 @@ The current app version is displayed in Settings (Account page) and defined as `
 ### v6.0.1 — UI glass fix round 2
 - Header frosted-glass pill now applies at **ALL screen sizes** — same as the bottom nav (previously desktop-only via the `≥641px` media query; mobile header kept the old full-width frosted bar). Now the top box matches the bottom box: rounded pill + glass on the `max-w-md` content box everywhere, wrapper fully transparent. No media query left in the header/nav glass rules.
 
+### v6.0.2 — pill radius alignment
+- Header pill corner radius aligned to **28px (1.75rem)** to exactly match the bottom-nav pill (`rounded-[28px]`) — top and bottom boxes now look identical.
+
+| **v7** | S12 (current) | **Telegram QR-payment foundation** — `upgrade_requests` table + RPCs (`my_pending_requests`, `bot_lookup_email`, `bot_approve_upgrade`, `bot_reject_upgrade`) with strict RLS (clients read own rows only, bot writes via service_role). Cards page is **locked with a "Payment Under Review" screen** while a request is pending — unlocks instantly (realtime) on approve/reject. **Telegram Stars completely removed** (stars fields, `BOT_API_BASE` callback flow, Stars success modal, ⭐ button). Full bot build spec shipped: `TELEGRAM_BOT_PROMPT.txt` (architecture diagram + flow + commands + edge cases). |
+
+### v7.0.0 — Telegram QR-payment foundation (S12)
+- **New table `upgrade_requests`** (migration 0018, applied + verified live): pending/approved/rejected/refunded lifecycle, unique-paise amounts (e.g. ₹599.37) so the owner can match each credit in PhonePe by exact amount.
+- **New RPCs:** `my_pending_requests()` (authenticated — powers the Cards lock), `bot_lookup_email()` / `bot_approve_upgrade()` / `bot_reject_upgrade()` (service_role ONLY — verified: anon 401, live user got own pending row).
+- **Website gating:** Cards page renders a lock screen while any request is pending; realtime on `upgrade_requests` clears it the moment the owner approves/rejects.
+- **Telegram Stars removed:** `stars` fields, `BOT_API_BASE`/`telegram_id` return flow, "Stars" success modal, ⭐ on Buy button — verified 0 refs left; README updated.
+- **`TELEGRAM_BOT_PROMPT.txt`** (repo root `/ai`): full spec so any AI can build the bot (Node/Telegraf/Supabase, QR, commands, security rules).
+
 ## How to bump a version
 1. Create a new git tag: `git tag vX.0.0 && git push origin vX.0.0`
 2. Bump `APP_VERSION` in `src/App.jsx`

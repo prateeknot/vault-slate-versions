@@ -6,20 +6,19 @@ import { supabase } from './lib/supabase'
 
 // ─── V2 PACK DEFINITIONS (INR Price -> USD Card Balance) ──────────────────────
 const V2_PACKS = [
-  { id: 'spark', name: 'Spark', price_inr: 299, balance_usd: 15, stars: 153, badge: 'Starter' },
-  { id: 'orbit', name: 'Orbit', price_inr: 499, balance_usd: 26, stars: 256, badge: 'Popular' },
-  { id: 'nova', name: 'Nova', price_inr: 799, balance_usd: 32, stars: 410, badge: 'Best Value' },
-  { id: 'galaxy', name: 'Galaxy', price_inr: 999, balance_usd: 49, stars: 512, badge: 'Pro' },
-  { id: 'cosmos', name: 'Cosmos', price_inr: 1299, balance_usd: 67, stars: 666, badge: 'Ultra' },
-  { id: 'infinity', name: 'Infinity', price_inr: 1599, balance_usd: 82, stars: 820, badge: 'Max Balance' },
+  { id: 'spark', name: 'Spark', price_inr: 299, balance_usd: 15, badge: 'Starter' },
+  { id: 'orbit', name: 'Orbit', price_inr: 499, balance_usd: 26, badge: 'Popular' },
+  { id: 'nova', name: 'Nova', price_inr: 799, balance_usd: 32, badge: 'Best Value' },
+  { id: 'galaxy', name: 'Galaxy', price_inr: 999, balance_usd: 49, badge: 'Pro' },
+  { id: 'cosmos', name: 'Cosmos', price_inr: 1299, balance_usd: 67, badge: 'Ultra' },
+  { id: 'infinity', name: 'Infinity', price_inr: 1599, balance_usd: 82, badge: 'Max Balance' },
 ]
 
-// ─── Version (v1 → v2 → v3 → v4 → v5) ─────────────────────────────────────────
-const APP_VERSION = '6.0.1'
+// ─── Version (v1 → v2 → v3 → v4 → v5 → v6 → v7) ────────────────────────────────
+const APP_VERSION = '7.0.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
-const BOT_API_BASE = 'https://temp-card-bot.onrender.com'
 
 const TIER_BALANCES = {
   free: 0,
@@ -919,6 +918,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
   const [claiming, setClaiming] = useState(false)
   const [layout, setLayout] = useState('list')
   const [favOnly, setFavOnly] = useState(false)
+  const [pendingRequests, setPendingRequests] = useState([])
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
@@ -973,14 +973,16 @@ function CardsPage({ currentUser, onNavigate, settings }) {
         setPlanLimit(3)
         return
       }
-      const [overviewRes, cardsRes] = await Promise.all([
+      const [overviewRes, cardsRes, pendingRes] = await Promise.all([
         supabase.rpc('my_overview'),
         supabase.rpc('cards_for_me'),
+        supabase.rpc('my_pending_requests'),
       ])
       const overview = overviewRes.data || {}
       const rows = normalizeCards(cardsRes.data)
       setOverview(overview)
       setClaimed(rows)
+      setPendingRequests(pendingRes.data || [])
     } catch (err) {
       console.error('Fetch error:', err)
       showToast('Could not load cards', 'error')
@@ -1005,6 +1007,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
         channel = supabase.channel('cards-realtime')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'cards' }, () => fetchData())
           .on('postgres_changes', { event: '*', schema: 'public', table: 'user_cards', filter: `user_id=eq.${uid}` }, () => fetchData())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'upgrade_requests' }, () => fetchData())
           .subscribe()
       }
     })
@@ -1068,6 +1071,73 @@ function CardsPage({ currentUser, onNavigate, settings }) {
           <svg className="animate-spin h-8 w-8 text-brand mx-auto" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
           <p className="mt-3 text-sm text-muted-foreground">Loading cards…</p>
         </div>
+      </div>
+    )
+  }
+
+  // Pending upgrade payment → cards stay LOCKED until the owner approves/rejects
+  if (!isGuest && pendingRequests.length > 0) {
+    const req = pendingRequests[0]
+    const pack = V2_PACKS.find((p) => p.id === req.pack_id)
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        {settings?.announcement && (
+          <div className="bg-brand text-primary-foreground text-center text-[12px] font-semibold px-4 py-2">{settings.announcement}</div>
+        )}
+        <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+          <div className="max-w-md mx-auto px-4 flex items-center justify-between h-14">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+                <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+              </div>
+              <span className="font-bold text-foreground">VCardz</span>
+            </div>
+            <span className="text-[11px] font-bold uppercase px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Payment review</span>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-md mx-auto w-full px-4 pt-8 pb-28">
+          <div className="rounded-3xl border border-amber-200 bg-white shadow-soft p-6 text-center">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-100 flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+            </div>
+            <h2 className="font-black text-[18px] text-foreground">Payment Under Review</h2>
+            <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
+              Aapki <span className="font-bold text-foreground">{pack?.name || req.pack_name || req.pack_id}</span> pack ki payment
+              review mein hai. Admin approve karte hi aapke cards unlock ho jayenge.
+            </p>
+
+            <div className="mt-4 rounded-2xl bg-surface border border-border p-4 text-left space-y-2">
+              <div className="flex justify-between text-[12px]">
+                <span className="text-muted-foreground font-semibold">Pack</span>
+                <span className="font-bold text-foreground">{pack?.name || req.pack_name || req.pack_id}</span>
+              </div>
+              <div className="flex justify-between text-[12px]">
+                <span className="text-muted-foreground font-semibold">Amount</span>
+                <span className="font-bold text-foreground">₹{Number(req.amount_inr).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[12px]">
+                <span className="text-muted-foreground font-semibold">Status</span>
+                <span className="font-bold text-amber-600">Pending review</span>
+              </div>
+              <div className="flex justify-between text-[12px]">
+                <span className="text-muted-foreground font-semibold">Requested</span>
+                <span className="font-semibold text-foreground">{new Date(req.created_at).toLocaleDateString()} {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            </div>
+
+            <p className="text-[12px] text-muted-foreground mt-4">
+              Koi sawaal? Message us on Telegram: <span className="font-bold text-brand">@{TELEGRAM_BOT_USERNAME}</span>
+            </p>
+            <button
+              onClick={() => fetchData()}
+              className="mt-4 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-[14px] hover:opacity-90 active:scale-[0.98] transition-all shadow-md"
+            >
+              Re-check Status
+            </button>
+          </div>
+        </main>
+        <BottomNav view="cards" isLoggedIn={!!currentUser} onNavigate={onNavigate} />
       </div>
     )
   }
@@ -1309,9 +1379,6 @@ function FAQPage({ onNavigate }) {
 
 // ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────��───────
 function PricingPage({ currentUser, onNavigate, settings }) {
-  const [toast, setToast] = useState(null)
-  const [telegramCard, setTelegramCard] = useState(null)
-  const [telegramLoading, setTelegramLoading] = useState(false)
   const [stock, setStock] = useState({})
 
   useEffect(() => {
@@ -1321,34 +1388,6 @@ function PricingPage({ currentUser, onNavigate, settings }) {
       setStock(m)
     }).catch(() => { })
   }, [])
-
-  // Check URL for telegram_id param (returning from Telegram payment)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const tgId = params.get('telegram_id')
-    const plan = params.get('plan')
-    if (tgId) {
-      setTelegramLoading(true)
-      fetch(`${BOT_API_BASE}/api/get-card/${tgId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.ok) {
-            setTelegramCard(data)
-            showToast(`🎉 ${data.plan} plan activated via Telegram Stars!`)
-          }
-        })
-        .catch(() => { })
-        .finally(() => setTelegramLoading(false))
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname)
-    }
-  }, [])
-
-  const showToast = useCallback((msg, type = 'success') => {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 2500)
-  }, [])
-
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -1388,7 +1427,7 @@ function PricingPage({ currentUser, onNavigate, settings }) {
                     onClick={() => window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')}
                     className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
                   >
-                    ⭐ Buy via Telegram
+                    Buy via Telegram
                   </button>
                 )}
               </div>
@@ -1432,49 +1471,7 @@ function PricingPage({ currentUser, onNavigate, settings }) {
         </section>
       </main>
 
-      {/* Telegram Stars success card modal */}
-      {telegramCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-panel space-y-4">
-            <div className="text-center">
-              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-                <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-              </div>
-              <h3 className="font-black text-[18px] text-foreground">Payment Successful</h3>
-              <p className="text-[12px] text-muted-foreground mt-1">{telegramCard.plan} plan activated via Telegram Stars</p>
-            </div>
 
-            <div className="bg-gradient-to-br from-[#2c3a52] via-[#212c3f] to-[#141b28] rounded-2xl p-5 text-white relative overflow-hidden">
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.10) 0%,transparent 55%)' }} />
-              <p className="text-[10px] text-white/55 uppercase tracking-widest font-bold relative z-10">VCardz — Temp Card</p>
-              <p className="font-mono text-white text-[18px] tracking-[0.15em] font-bold mt-4 relative z-10">{telegramCard.temp_card || '•••• •••• •••• ••••'}</p>
-              <div className="flex items-center justify-between mt-5 relative z-10">
-                <div>
-                  <p className="text-[8px] text-white/35 uppercase tracking-widest">Plan</p>
-                  <p className="text-[13px] text-white font-bold">{telegramCard.plan}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[8px] text-white/35 uppercase tracking-widest">Status</p>
-                  <p className="text-[13px] text-emerald-300 font-bold">{telegramCard.status}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[8px] text-white/35 uppercase tracking-widest">Stars</p>
-                  <p className="text-[13px] text-white font-bold">{telegramCard.stars_paid} ⭐</p>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setTelegramCard(null)}
-              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-[14px] hover:opacity-90 transition-opacity"
-            >
-              View My Cards
-            </button>
-          </div>
-        </div>
-      )}
-
-      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
       <BottomNav view="pricing" isLoggedIn={!!currentUser} onNavigate={onNavigate} />
     </div>
   )
