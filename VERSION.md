@@ -16,6 +16,12 @@ The current app version is displayed in Settings (Account page) and defined as `
 ### v5.0.1 — security hotfix (S11 audit)
 - **CRITICAL fix:** `cards_read_authenticated` RLS policy (`SELECT, qual = TRUE`) let any signed-up user read ALL card numbers + CVVs directly via REST (597 rows, proven live). Dropped the policy + revoked direct DML grants on `cards` from `anon`/`authenticated`. All card access now goes exclusively through security-definer RPCs (verified: user/admin RPCs unaffected).
 
+### v5.0.2 — security hardening round 2 (S11 audit #2)
+- **CRITICAL:** `confirm_order` marked orders `paid` + assigned paid-tier cards **without verifying any payment** (proven: `create_order` → `confirm_order('upi_mock')` reached only `NO_CARD_AVAILABLE`). Now revoked from clients — service_role/bot only; mock "Simulated UPI Checkout" UI removed (Buy → Telegram directly).
+- **CRITICAL:** `user_cards` policy allowed INSERT (proven: user self-assigned any card, full CVV returned). Now SELECT/UPDATE/DELETE only + UPDATE restricted to `note`/`is_favorite` columns. Claiming is RPC-only.
+- **HIGH:** `vs_client_ip` used the FIRST `X-Forwarded-For` entry (client-spoofable) → admin-login cooldown bypass → 6-digit brute force. Now uses the LAST (trusted-gateway) entry.
+- **MEDIUM:** `create_order` now caps pending orders to 1 per user (anti-spam).
+
 ## How to bump a version
 1. Create a new git tag: `git tag vX.0.0 && git push origin vX.0.0`
 2. Bump `APP_VERSION` in `src/App.jsx`

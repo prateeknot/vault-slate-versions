@@ -1309,13 +1309,10 @@ function FAQPage({ onNavigate }) {
 
 // ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────��───────
 function PricingPage({ currentUser, onNavigate, settings }) {
-  const [selectedPack, setSelectedPack] = useState(null)
-  const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
   const [telegramCard, setTelegramCard] = useState(null)
   const [telegramLoading, setTelegramLoading] = useState(false)
   const [stock, setStock] = useState({})
-  const navTimerRef = useRef(null)
 
   useEffect(() => {
     supabase.rpc('tier_stock').then(({ data }) => {
@@ -1324,8 +1321,6 @@ function PricingPage({ currentUser, onNavigate, settings }) {
       setStock(m)
     }).catch(() => { })
   }, [])
-
-  useEffect(() => () => { if (navTimerRef.current) clearTimeout(navTimerRef.current) }, [])
 
   // Check URL for telegram_id param (returning from Telegram payment)
   useEffect(() => {
@@ -1354,32 +1349,6 @@ function PricingPage({ currentUser, onNavigate, settings }) {
     setTimeout(() => setToast(null), 2500)
   }, [])
 
-  const handleSimulatePayment = async () => {
-    if (!selectedPack) return
-    if (!currentUser) { onNavigate('auth'); return }
-    setLoading(true)
-    try {
-      const { data: orderData, error: orderErr } = await supabase.rpc('create_order', { p_pack_id: selectedPack.id })
-      if (orderErr) throw orderErr
-
-      const { data: confirmData, error: confirmErr } = await supabase.rpc('confirm_order', { p_order_id: orderData.order_id, p_gateway: 'upi_mock' })
-      if (confirmErr) throw confirmErr
-
-      showToast(`🎉 Payment Confirmed! Card updated to ${selectedPack.name} Pack with $${selectedPack.balance_usd} USD!`)
-      setSelectedPack(null)
-      navTimerRef.current = setTimeout(() => onNavigate('cards'), 1200)
-    } catch (err) {
-      console.error('Payment error:', err)
-      const msg = String(err.message || err)
-      if (msg.includes('NO_CARD_AVAILABLE')) {
-        showToast('This pack is sold out right now — no cards left in this tier. Please try again later.', 'error')
-      } else {
-        showToast('Payment could not be completed. Please try again.', 'error')
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -1416,18 +1385,12 @@ function PricingPage({ currentUser, onNavigate, settings }) {
                   <span className="block w-full text-center px-3.5 py-1.5 rounded-xl bg-red-50 text-red-600 font-bold text-[12px] border border-red-200">Sold out</span>
                 ) : (
                   <button
-                    onClick={() => { setSelectedPack(p) }}
-                    className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full"
+                    onClick={() => window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')}
+                    className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
                   >
-                    Buy ₹
+                    ⭐ Buy via Telegram
                   </button>
                 )}
-                <button
-                  onClick={() => window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-600 text-white font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
-                >
-                  ⭐ {p.stars} Buy
-                </button>
               </div>
             </div>
           ))}
@@ -1468,44 +1431,6 @@ function PricingPage({ currentUser, onNavigate, settings }) {
           <p className="text-center text-[10px] text-muted-foreground mt-2">Lower ₹/$ = better value. All packs include instant Telegram delivery.</p>
         </section>
       </main>
-
-      {/* Payment Modal */}
-      {selectedPack && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-panel space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div>
-                <h3 className="font-black text-[16px] text-foreground">Confirm Purchase</h3>
-                <p className="text-[12px] text-muted-foreground">{selectedPack.name} Pack</p>
-              </div>
-              <button onClick={() => setSelectedPack(null)} className="p-1 rounded-full text-muted-foreground hover:bg-surface">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div className="bg-surface rounded-2xl p-4 space-y-2 border border-border text-center">
-              <p className="text-[12px] font-semibold text-muted-foreground">Amount to Pay</p>
-              <p className="text-[28px] font-black text-foreground">₹{selectedPack.price_inr} INR</p>
-              <div className="inline-block bg-emerald-100 text-emerald-700 font-bold text-[12px] px-3 py-1 rounded-full mt-1">
-                Adds ${selectedPack.balance_usd} USD Card Balance
-              </div>
-            </div>
-
-            <div className="border border-dashed border-border rounded-2xl p-4 text-center space-y-1">
-              <p className="text-[11px] font-bold uppercase text-muted-foreground">Simulated UPI Checkout</p>
-              <p className="font-mono text-[12px] text-brand font-bold">virtualcards@upi</p>
-            </div>
-
-            <button
-              onClick={handleSimulatePayment}
-              disabled={loading}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-[14px] hover:bg-emerald-700 transition-colors shadow-lg disabled:opacity-50"
-            >
-              {loading ? 'Processing Payment...' : `Complete Payment (₹${selectedPack.price_inr})`}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Telegram Stars success card modal */}
       {telegramCard && (
