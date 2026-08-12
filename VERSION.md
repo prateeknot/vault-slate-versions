@@ -22,6 +22,8 @@ The current app version is displayed in Settings (Account page) and defined as `
 - **HIGH:** `vs_client_ip` used the FIRST `X-Forwarded-For` entry (client-spoofable) → admin-login cooldown bypass → 6-digit brute force. Now uses the LAST (trusted-gateway) entry.
 - **MEDIUM:** `create_order` now caps pending orders to 1 per user (anti-spam).
 
+| **v6** | S11d (current) | **UI glass fix** — frosted-glass blur now lives only on the content box (`max-w-md`), not the full-width header/nav wrapper, so the blur region exactly matches the rounded boxes (no more full-width blur leaking past on wide screens). Mobile look preserved; desktop now shows clean centered rounded glass bars. |
+
 ## How to bump a version
 1. Create a new git tag: `git tag vX.0.0 && git push origin vX.0.0`
 2. Bump `APP_VERSION` in `src/App.jsx`

@@ -15,7 +15,7 @@ const V2_PACKS = [
 ]
 
 // ─── Version (v1 → v2 → v3 → v4 → v5) ─────────────────────────────────────────
-const APP_VERSION = '5.0.0'
+const APP_VERSION = '6.0.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
@@ -294,7 +294,7 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-3">
+    <nav className="app-nav fixed bottom-0 left-0 right-0 z-40 px-3 pb-3">
       <div className="max-w-md mx-auto relative rounded-[28px] border border-border bg-white/90 backdrop-blur-xl shadow-panel">
         <div className="flex items-center justify-around h-16 px-2">
           {leftTabs.map(renderTab)}
@@ -331,7 +331,7 @@ function LandingPage({ isLoggedIn, onNavigate, settings }) {
       {settings?.announcement && (
         <div className="bg-brand text-primary-foreground text-center text-[12px] font-semibold px-4 py-2">{settings.announcement}</div>
       )}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+      <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
@@ -619,7 +619,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+      <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center h-14">
           <button onClick={() => onNavigate('landing')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
@@ -1077,7 +1077,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
       {settings?.announcement && (
         <div className="bg-brand text-primary-foreground text-center text-[12px] font-semibold px-4 py-2">{settings.announcement}</div>
       )}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+      <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
@@ -1270,7 +1270,7 @@ function FAQPage({ onNavigate }) {
   ]
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+      <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center h-14">
           <button onClick={() => onNavigate('account')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
@@ -1355,7 +1355,7 @@ function PricingPage({ currentUser, onNavigate, settings }) {
       {settings?.announcement && (
         <div className="bg-brand text-primary-foreground text-center text-[12px] font-semibold px-4 py-2">{settings.announcement}</div>
       )}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+      <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center h-14">
           <button onClick={() => onNavigate('landing')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
@@ -1567,7 +1567,7 @@ function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange, 
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 px-3 pt-3">
+      <header className="app-header sticky top-0 z-40 px-3 pt-3">
         <div className="max-w-md mx-auto flex items-center gap-2">
           <div className="ios-icon-well w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
             <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
