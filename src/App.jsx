@@ -311,7 +311,7 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
 }
 
 // ─── LANDING PAGE ─────────────────────────────────────────────────────────────
-function LandingPage({ isLoggedIn, onNavigate }) {
+function LandingPage({ isLoggedIn, onNavigate, settings }) {
   const [availableCount, setAvailableCount] = useState(null)
 
   useEffect(() => {
@@ -325,6 +325,9 @@ function LandingPage({ isLoggedIn, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {settings?.announcement && (
+        <div className="bg-brand text-primary-foreground text-center text-[12px] font-semibold px-4 py-2">{settings.announcement}</div>
+      )}
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
@@ -874,8 +877,9 @@ function CardDetailModal({ card, flipped, onFlip, onClose, onCopy, isPreview = f
 }
 
 // ─── CARDS PAGE ───────────────────────────────────────────────────────────────
-function CardsPage({ currentUser, onNavigate }) {
+function CardsPage({ currentUser, onNavigate, settings }) {
   const userPlan = currentUser?.plan ?? 'free'
+  const claimsEnabled = settings?.claims_enabled !== 'false'
   const isGuest = !!currentUser?.isGuest
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [search, setSearch] = useState('')
@@ -981,6 +985,9 @@ function CardsPage({ currentUser, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {settings?.announcement && (
+        <div className="bg-brand text-primary-foreground text-center text-[12px] font-semibold px-4 py-2">{settings.announcement}</div>
+      )}
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
@@ -1047,17 +1054,27 @@ function CardsPage({ currentUser, onNavigate }) {
             <div className="w-14 h-14 mx-auto rounded-2xl bg-primary flex items-center justify-center mb-3">
               <svg className="w-7 h-7 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0v3.75m0-3.75h5.25" /></svg>
             </div>
-            <h3 className="font-black text-[16px] text-foreground mb-1">Get Your Free Card</h3>
-            <p className="text-[12px] text-muted-foreground mb-4">Claim a free virtual card with a random USD balance ($1 - $15)</p>
-            <button
-              onClick={handleClaimFreeCard}
-              disabled={claiming}
-              className="w-full py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
-            >
-              {claiming
-                ? <span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Claiming...</span>
-                : 'Claim Free Card'}
-            </button>
+            {claimsEnabled ? (
+              <>
+                <h3 className="font-black text-[16px] text-foreground mb-1">Get Your Free Card</h3>
+                <p className="text-[12px] text-muted-foreground mb-4">Claim a free virtual card with a random USD balance ($1 - $15)</p>
+                <button
+                  onClick={handleClaimFreeCard}
+                  disabled={claiming}
+                  className="w-full py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
+                >
+                  {claiming
+                    ? <span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Claiming...</span>
+                    : 'Claim Free Card'}
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="font-black text-[16px] text-foreground mb-1">Free claims are paused</h3>
+                <p className="text-[12px] text-muted-foreground mb-4">Free card claiming is temporarily disabled. You can still buy a Top-Up Pack.</p>
+                <button onClick={() => onNavigate('pricing')} className="w-full py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 transition-opacity shadow-md">View Plans</button>
+              </>
+            )}
           </div>
         )}
 
@@ -1097,7 +1114,7 @@ function CardsPage({ currentUser, onNavigate }) {
 }
 
 // ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────��───────
-function PricingPage({ currentUser, onNavigate }) {
+function PricingPage({ currentUser, onNavigate, settings }) {
   const [selectedPack, setSelectedPack] = useState(null)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
@@ -1172,6 +1189,9 @@ function PricingPage({ currentUser, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {settings?.announcement && (
+        <div className="bg-brand text-primary-foreground text-center text-[12px] font-semibold px-4 py-2">{settings.announcement}</div>
+      )}
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center h-14">
           <button onClick={() => onNavigate('landing')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
@@ -1461,7 +1481,7 @@ function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange }
 }
 
 // ─── ADMIN PANEL ──────────────────────────────────────────────────��───────────
-function AdminPanelPage({ onNavigate }) {
+function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const token = getAdminToken()
   const [activeTab, setActiveTab] = useState('overview')
   const [cards, setCards] = useState([])
@@ -1473,6 +1493,12 @@ function AdminPanelPage({ onNavigate }) {
   const [userSearch, setUserSearch] = useState('')
   const [dataLoading, setDataLoading] = useState(true)
   const [toast, setToast] = useState(null)
+  const [selectedCards, setSelectedCards] = useState([])
+  const [selectedUsers, setSelectedUsers] = useState([])
+  const [expiryFilter, setExpiryFilter] = useState('all')
+  const [orderRange, setOrderRange] = useState('all')
+  const [sessions, setSessions] = useState([])
+  const [settingsDraft, setSettingsDraft] = useState({})
 
   const EMPTY_FORM = { card_number: '', name: '', expiry: '', cvv: '', provider: 'Visa', label: '', is_active: true, tier: 'free', balance_usd: 0 }
   const PLAN_TIERS = ['Free', 'Pro', 'Max']
@@ -1616,7 +1642,101 @@ function AdminPanelPage({ onNavigate }) {
     } catch { }
   }
 
-  useEffect(() => { fetchAll(); fetchOrders(); fetchInventory() }, [])
+  useEffect(() => { fetchAll(); fetchOrders(); fetchInventory(); fetchSessions() }, [])
+
+  const fetchSessions = async () => {
+    if (!token) return
+    try {
+      const { data } = await supabase.rpc('admin_sessions_list', { p_token: token })
+      if (data) setSessions(data)
+    } catch { }
+  }
+
+  const revokeSession = async (sess) => {
+    try {
+      const { error } = await supabase.rpc('admin_session_revoke', { p_token: token, p_session_id: sess.id })
+      if (error) throw error
+      showToast('Session revoked', 'info')
+      fetchSessions()
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  const saveSetting = async (key, value) => {
+    try {
+      const { error } = await supabase.rpc('admin_set_setting', { p_token: token, p_key: key, p_value: String(value) })
+      if (error) throw error
+      onSettingsChange?.((prev) => ({ ...prev, [key]: String(value) }))
+      showToast('Setting saved')
+    } catch (err) { showToast('Failed to save: ' + err.message, 'error') }
+  }
+
+  const bulkToggleCards = async (active) => {
+    if (!selectedCards.length) return
+    let ok = 0
+    for (const id of selectedCards) {
+      const { error } = await supabase.rpc('admin_card_set_active', { p_token: token, p_id: id, p_active: active })
+      if (!error) ok++
+    }
+    showToast(`${ok} cards ${active ? 'activated' : 'deactivated'}`)
+    setSelectedCards([])
+    fetchAll()
+  }
+
+  const bulkDeleteCards = async () => {
+    if (!selectedCards.length) return
+    if (!window.confirm(`Delete ${selectedCards.length} selected card(s)?`)) return
+    let ok = 0
+    for (const id of selectedCards) {
+      const { error } = await supabase.rpc('admin_card_delete', { p_token: token, p_id: id })
+      if (!error) ok++
+    }
+    showToast(`${ok} cards deleted`, 'info')
+    setSelectedCards([])
+    fetchAll()
+  }
+
+  const bulkToggleUsers = async (activate) => {
+    if (!selectedUsers.length) return
+    // Only touch users whose current state differs from the target — the RPC is a
+    // flip (banned_until based), so acting on an already-matching selection would
+    // do the opposite of the button label.
+    const targets = selectedUsers.filter((id) => users.find((u) => u.id === id)?.is_active !== activate)
+    if (!targets.length) { setSelectedUsers([]); showToast('Nothing to do — selection already matches', 'info'); return }
+    if (!activate && !window.confirm(`Suspend ${targets.length} selected user(s)? Their access will be blocked until reactivated.`)) return
+    let ok = 0
+    for (const id of targets) {
+      const { data, error } = await supabase.rpc('admin_toggle_user_status', { p_token: token, p_user_id: id })
+      if (!error && !!data?.active === activate) ok++
+    }
+    showToast(`${ok} users ${activate ? 'activated' : 'suspended'}`)
+    setSelectedUsers([])
+    fetchAll()
+  }
+
+  const downloadBackup = async () => {
+    try {
+      const [c, u, o, p, inv, s] = await Promise.all([
+        supabase.rpc('admin_cards', { p_token: token }),
+        supabase.rpc('admin_users', { p_token: token }),
+        supabase.rpc('admin_orders_list', { p_token: token }),
+        supabase.rpc('admin_packs', { p_token: token }),
+        supabase.rpc('admin_inventory', { p_token: token }),
+        supabase.rpc('get_app_settings'),
+      ])
+      const backup = {
+        exported_at: new Date().toISOString(),
+        cards: c.data || [], users: u.data || [], orders: o.data || [], packs: p.data || [], inventory: inv.data || [], settings: s.data || {},
+      }
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `vcardz-backup-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 100)
+      showToast('Backup downloaded')
+    } catch (err) { showToast('Backup failed: ' + err.message, 'error') }
+  }
 
   const handleSaveCard = async () => {
     if (!formData.card_number || !formData.name || !formData.expiry || !formData.cvv) { showToast('Fill all required fields', 'error'); return }
@@ -1859,7 +1979,13 @@ function AdminPanelPage({ onNavigate }) {
   const exportUsers = () => downloadCSV('vcardz-users.csv', users.map((u) => ({ id: u.id, email: u.email, name: u.name, plan: u.plan, status: u.is_active === false ? 'suspended' : 'active', created_at: u.created_at })))
   const exportOrders = () => downloadCSV('vcardz-orders.csv', orders.map((o) => ({ id: o.id, email: o.user_email, name: o.display_name, pack: o.pack_name, amount_inr: o.amount_inr, status: o.status, gateway: o.gateway, gateway_ref: o.gateway_ref, created_at: o.created_at, paid_at: o.paid_at })))
 
-  const filteredCards = cards.filter((c) => !cardSearch || c.name?.toLowerCase().includes(cardSearch.toLowerCase()) || c.card_number?.includes(cardSearch) || c.provider?.toLowerCase().includes(cardSearch.toLowerCase()))
+  const filteredCards = cards.filter((c) => {
+    if (cardSearch && !(c.name?.toLowerCase().includes(cardSearch.toLowerCase()) || c.card_number?.includes(cardSearch) || c.provider?.toLowerCase().includes(cardSearch.toLowerCase()))) return false
+    if (expiryFilter === 'expired' && !expiredCard(c)) return false
+    if (expiryFilter === 'expiring' && !expiringCard(c)) return false
+    if (expiryFilter === 'duplicates' && !duplicateNumbers.has(String(c.card_number || '').replace(/\D/g, ''))) return false
+    return true
+  })
   const filteredUsers = users.filter((u) => !userSearch || (u.display_name || u.email || '').toLowerCase().includes(userSearch.toLowerCase()) || (u.email || '').toLowerCase().includes(userSearch.toLowerCase()))
 
   const stats = {
@@ -1869,6 +1995,30 @@ function AdminPanelPage({ onNavigate }) {
   }
 
   const availableCards = inventory.reduce((s, i) => s + (i.available || 0), 0)
+  const duplicateNumbers = (() => {
+    const counts = {}
+    cards.forEach((c) => { const n = String(c.card_number || '').replace(/\D/g, ''); if (n) counts[n] = (counts[n] || 0) + 1 })
+    return new Set(Object.keys(counts).filter((n) => counts[n] > 1))
+  })()
+  const expiringCard = (c) => {
+    const m = /^(\d{2})\/(\d{2})$/.exec(String(c.expiry || ''))
+    if (!m) return false
+    const exp = new Date(2000 + Number(m[2]), Number(m[1]))
+    const in3m = new Date(); in3m.setMonth(in3m.getMonth() + 3)
+    return exp < in3m
+  }
+  const expiredCard = (c) => {
+    const m = /^(\d{2})\/(\d{2})$/.exec(String(c.expiry || ''))
+    if (!m) return true
+    return new Date(2000 + Number(m[2]), Number(m[1])) < new Date()
+  }
+  const rangeOk = (dateStr) => {
+    if (orderRange === 'all' || !dateStr) return true
+    const d = new Date(dateStr)
+    const now = Date.now()
+    const days = orderRange === '7' ? 7 : orderRange === '30' ? 30 : 90
+    return now - d.getTime() <= days * 86400000
+  }
   const paidRevenue = orders.filter((o) => o.status === 'paid').reduce((s, o) => s + (o.amount_inr || 0), 0)
   const pendingOrders = orders.filter((o) => o.status === 'pending').length
   const totalAssigned = inventory.reduce((s, i) => s + (i.assigned || 0), 0)
@@ -1974,6 +2124,14 @@ function AdminPanelPage({ onNavigate }) {
 
           {activeTab === 'overview' && !dataLoading && (
             <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${settings?.maintenance === 'true' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{settings?.maintenance === 'true' ? '🛠 Maintenance ON' : '● All systems normal'}</span>
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${settings?.claims_enabled === 'false' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'}`}>{settings?.claims_enabled === 'false' ? 'Free claims paused' : 'Free claims ON'}</span>
+                <button onClick={downloadBackup} className="ml-auto flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors">
+                  <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                  Download Backup
+                </button>
+              </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: 'Total Cards', value: stats.totalCards, sub: `${stats.activeCards} active`, color: 'text-brand', bg: 'bg-brand-dim' },
@@ -2065,32 +2223,52 @@ function AdminPanelPage({ onNavigate }) {
 
           {activeTab === 'cards' && !dataLoading && (
             <div className="space-y-4">
-              <div className="flex gap-3 items-center">
-                <div className="relative flex-1">
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="relative flex-1 min-w-[220px]">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
                   <input value={cardSearch} onChange={(e) => setCardSearch(e.target.value)} placeholder="Search by name, number, bank..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 transition-colors" />
                 </div>
+                <select value={expiryFilter} onChange={(e) => setExpiryFilter(e.target.value)} className="bg-surface border border-border rounded-xl px-3 py-2.5 text-[12px] font-bold text-foreground focus:outline-none focus:border-brand/50">
+                  <option value="all">All cards</option>
+                  <option value="expiring">Expiring ≤ 3mo ({cards.filter(expiringCard).length})</option>
+                  <option value="expired">Expired ({cards.filter(expiredCard).length})</option>
+                  <option value="duplicates">Duplicates ({duplicateNumbers.size} numbers)</option>
+                </select>
                 <div className="flex items-center gap-2 text-[12px] text-muted-foreground bg-surface border border-border rounded-xl px-3 py-2.5 shrink-0"><span className="font-bold text-foreground">{filteredCards.length}</span> cards</div>
               </div>
+              {selectedCards.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 bg-brand-dim border border-brand/20 rounded-xl px-3 py-2">
+                  <span className="text-[12px] font-bold text-brand">{selectedCards.length} selected</span>
+                  <div className="flex-1" />
+                  <button onClick={() => bulkToggleCards(true)} className="text-[11px] font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors">Activate</button>
+                  <button onClick={() => bulkToggleCards(false)} className="text-[11px] font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors">Deactivate</button>
+                  <button onClick={bulkDeleteCards} className="text-[11px] font-bold text-red-600 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors">Delete</button>
+                  <button onClick={() => setSelectedCards([])} className="text-[11px] font-bold text-muted-foreground hover:text-foreground px-2">Clear</button>
+                </div>
+              )}
               <div className="bg-white border border-border rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-border bg-surface">{['Card', 'Holder', 'Provider', 'Category', 'Expiry', 'Status', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}</tr>
+                      <tr className="border-b border-border bg-surface">
+                        <th className="px-3 py-3 w-8"><input type="checkbox" className="w-4 h-4 accent-brand" checked={selectedCards.length === filteredCards.length && filteredCards.length > 0} onChange={(e) => setSelectedCards(e.target.checked ? filteredCards.map((c) => c.id) : [])} /></th>
+                        {['Card', 'Holder', 'Provider', 'Category', 'Expiry', 'Status', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}
+                      </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {filteredCards.map((card) => (
-                        <tr key={card.id} className="hover:bg-surface/50 transition-colors">
+                        <tr key={card.id} className={`hover:bg-surface/50 transition-colors ${selectedCards.includes(card.id) ? 'bg-brand-dim/40' : ''} ${duplicateNumbers.has(String(card.card_number || '').replace(/\D/g, '')) && expiryFilter === 'duplicates' ? 'bg-red-50' : ''}`}>
+                          <td className="px-3 py-3"><input type="checkbox" className="w-4 h-4 accent-brand" checked={selectedCards.includes(card.id)} onChange={(e) => setSelectedCards((prev) => e.target.checked ? [...prev, card.id] : prev.filter((x) => x !== card.id))} /></td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2.5">
                               <div className={`w-10 h-7 rounded-lg bg-gradient-to-br ${CARD_GRADIENTS[card.provider] || CARD_GRADIENTS.Visa} flex items-end justify-end p-1 shrink-0`}><ProviderLogo provider={card.provider} size="md" /></div>
-                              <span className="font-mono text-[12px] text-foreground whitespace-nowrap">•••• {card.card_number?.slice(-4)}</span>
+                              <span className="font-mono text-[12px] text-foreground whitespace-nowrap">•••• {card.card_number?.slice(-4)}{duplicateNumbers.has(String(card.card_number || '').replace(/\D/g, '')) && <span className="ml-1 text-[9px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">DUP</span>}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-[13px] text-foreground font-semibold whitespace-nowrap">{card.name}</td>
                           <td className="px-4 py-3 text-[12px] text-muted-foreground whitespace-nowrap">{card.provider}</td>
                           <td className="px-4 py-3"><span className="text-[11px] bg-surface-2 text-muted-foreground px-2 py-0.5 rounded-full border border-border">{card.category}</span></td>
-                          <td className="px-4 py-3 text-[12px] text-muted-foreground font-mono whitespace-nowrap">{card.expiry}</td>
+                          <td className={`px-4 py-3 text-[12px] font-mono whitespace-nowrap ${expiredCard(card) ? 'text-red-600 font-bold' : expiringCard(card) ? 'text-amber-600' : 'text-muted-foreground'}`}>{card.expiry}</td>
                           <td className="px-4 py-3">
                             <button onClick={() => toggleCardStatus(card)} className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${card.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>{card.is_active ? 'Active' : 'Inactive'}</button>
                           </td>
@@ -2130,15 +2308,28 @@ function AdminPanelPage({ onNavigate }) {
                   Export CSV
                 </button>
               </div>
+              {selectedUsers.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 bg-brand-dim border border-brand/20 rounded-xl px-3 py-2">
+                  <span className="text-[12px] font-bold text-brand">{selectedUsers.length} selected</span>
+                  <div className="flex-1" />
+                  <button onClick={() => bulkToggleUsers(true)} className="text-[11px] font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors">Activate</button>
+                  <button onClick={() => bulkToggleUsers(false)} className="text-[11px] font-bold text-red-600 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors">Suspend</button>
+                  <button onClick={() => setSelectedUsers([])} className="text-[11px] font-bold text-muted-foreground hover:text-foreground px-2">Clear</button>
+                </div>
+              )}
               <div className="bg-white border border-border rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-border bg-surface">{['User', 'Plan', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}</tr>
+                      <tr className="border-b border-border bg-surface">
+                        <th className="px-3 py-3 w-8"><input type="checkbox" className="w-4 h-4 accent-brand" checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0} onChange={(e) => setSelectedUsers(e.target.checked ? filteredUsers.map((u) => u.id) : [])} /></th>
+                        {['User', 'Plan', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}
+                      </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {filteredUsers.map((user) => (
-                        <tr key={user.id} className={`hover:bg-surface/50 transition-colors ${user.is_active === false ? 'opacity-60 bg-red-50/40' : ''}`}>
+                        <tr key={user.id} className={`hover:bg-surface/50 transition-colors ${user.is_active === false ? 'opacity-60 bg-red-50/40' : ''} ${selectedUsers.includes(user.id) ? 'bg-brand-dim/40' : ''}`}>
+                          <td className="px-3 py-3"><input type="checkbox" className="w-4 h-4 accent-brand" checked={selectedUsers.includes(user.id)} onChange={(e) => setSelectedUsers((prev) => e.target.checked ? [...prev, user.id] : prev.filter((x) => x !== user.id))} /></td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center shrink-0">
@@ -2205,6 +2396,11 @@ function AdminPanelPage({ onNavigate }) {
                     <button key={s} onClick={() => setOrderFilter(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-bold capitalize transition-colors ${orderFilter === s ? 'bg-brand text-white' : 'text-muted-foreground hover:text-foreground'}`}>{s}</button>
                   ))}
                 </div>
+                <div className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1">
+                  {[{ v: 'all', l: 'All time' }, { v: '7', l: '7d' }, { v: '30', l: '30d' }, { v: '90', l: '90d' }].map((r) => (
+                    <button key={r.v} onClick={() => setOrderRange(r.v)} className={`px-2.5 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${orderRange === r.v ? 'bg-brand text-white' : 'text-muted-foreground hover:text-foreground'}`}>{r.l}</button>
+                  ))}
+                </div>
                 <div className="relative flex-1 min-w-[200px]">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
                   <input value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} placeholder="Search by user or order id..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
@@ -2230,7 +2426,7 @@ function AdminPanelPage({ onNavigate }) {
                         <tr className="border-b border-border bg-surface">{['User', 'Pack', 'Amount', 'Status', 'Created', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}</tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {orders.filter((o) => orderFilter === 'all' || o.status === orderFilter).filter((o) => !orderSearch || (o.user_email || o.display_name || o.pack_name || '').toLowerCase().includes(orderSearch.toLowerCase())).map((o) => (
+                        {orders.filter((o) => orderFilter === 'all' || o.status === orderFilter).filter((o) => rangeOk(o.created_at)).filter((o) => !orderSearch || (o.user_email || o.display_name || o.pack_name || '').toLowerCase().includes(orderSearch.toLowerCase())).map((o) => (
                           <tr key={o.id} className="hover:bg-surface/50 transition-colors">
                             <td className="px-4 py-3">
                               <p className="text-[13px] font-semibold text-foreground truncate">{o.display_name || '—'}</p>
@@ -2269,7 +2465,10 @@ function AdminPanelPage({ onNavigate }) {
                         <p className="font-bold text-[15px] text-foreground capitalize">{pack.name}</p>
                         <p className="text-[11px] text-muted-foreground">id: <span className="font-mono">{pack.id}</span></p>
                       </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pack.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>{pack.is_active ? 'Active' : 'Off'}</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pack.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>{pack.is_active ? 'Active' : 'Off'}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${inventory.find((i) => i.tier === pack.id)?.available < 3 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'}`}>{inventory.find((i) => i.tier === pack.id)?.available ?? 0} in pool</span>
+                      </div>
                     </div>
                     {packEditing === pack.id ? (
                       <div className="space-y-2.5">
@@ -2317,6 +2516,74 @@ function AdminPanelPage({ onNavigate }) {
 
           {activeTab === 'settings' && !dataLoading && (
             <div className="space-y-6">
+              <div className="bg-white border border-border rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[14px] text-foreground">Global Settings</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-brand">applies instantly</span>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[13px] font-semibold text-foreground">Maintenance mode</p>
+                      <p className="text-[11px] text-muted-foreground">Blocks all users (admin can still sign in). Great for breaking changes.</p>
+                    </div>
+                    <button onClick={() => saveSetting('maintenance', settings?.maintenance === 'true' ? 'false' : 'true')} className={`shrink-0 w-12 h-7 rounded-full transition-colors ${settings?.maintenance === 'true' ? 'bg-amber-500' : 'bg-slate-300'}`} aria-label="Toggle maintenance">
+                      <span className={`block w-5 h-5 bg-white rounded-full shadow transition-transform ${settings?.maintenance === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[13px] font-semibold text-foreground">Free card claims</p>
+                      <p className="text-[11px] text-muted-foreground">Pause the free card pool while you manage inventory.</p>
+                    </div>
+                    <button onClick={() => saveSetting('claims_enabled', settings?.claims_enabled === 'false' ? 'true' : 'false')} className={`shrink-0 w-12 h-7 rounded-full transition-colors ${settings?.claims_enabled === 'false' ? 'bg-slate-300' : 'bg-emerald-500'}`} aria-label="Toggle free claims">
+                      <span className={`block w-5 h-5 bg-white rounded-full shadow transition-transform ${settings?.claims_enabled === 'false' ? 'translate-x-1' : 'translate-x-6'}`} />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Announcement banner (empty = hidden)</label>
+                    <div className="flex gap-2 mt-1">
+                      <input value={settings?.announcement || ''} onChange={(e) => onSettingsChange?.((p) => ({ ...p, announcement: e.target.value }))} placeholder="e.g. New packs arriving Friday!" className="flex-1 bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50" />
+                      <button onClick={() => saveSetting('announcement', settings?.announcement || '')} className="bg-brand text-white text-[13px] font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity shrink-0">Save</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Force theme for everyone</label>
+                    <select value={settings?.force_theme || ''} onChange={(e) => saveSetting('force_theme', e.target.value)} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
+                      <option value="">User choice (default)</option>
+                      {APP_THEMES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Maintenance message</label>
+                    <div className="flex gap-2 mt-1">
+                      <input value={settings?.maintenance_message || ''} onChange={(e) => onSettingsChange?.((p) => ({ ...p, maintenance_message: e.target.value }))} className="flex-1 bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50" />
+                      <button onClick={() => saveSetting('maintenance_message', settings?.maintenance_message || '')} className="bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2.5 rounded-xl hover:border-brand/50 transition-colors shrink-0">Save</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border border-border rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[14px] text-foreground">Active Admin Sessions</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{sessions.filter((s) => s.is_active).length} active</span>
+                </div>
+                <div className="divide-y divide-border">
+                  {sessions.length === 0 && <p className="text-[12px] text-muted-foreground">No sessions found.</p>}
+                  {sessions.slice(0, 10).map((s) => (
+                    <div key={s.id} className="flex items-center gap-3 py-2.5">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${s.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-foreground truncate">{s.label || 'Admin'}</p>
+                        <p className="text-[11px] text-muted-foreground">{s.created_at ? new Date(s.created_at).toLocaleString() : ''} · expires {s.expires_at ? new Date(s.expires_at).toLocaleString() : ''}</p>
+                      </div>
+                      {s.is_active && <button onClick={() => revokeSession(s)} className="text-[11px] font-bold text-red-600 hover:underline shrink-0">Revoke</button>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="bg-white border border-border rounded-2xl p-5">
                 <h3 className="font-bold text-[14px] text-foreground mb-4">Plan Limits</h3>
                 <div className="grid grid-cols-3 gap-3">
@@ -2528,12 +2795,20 @@ function App() {
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('vcz_theme') || 'blue' } catch { return 'blue' }
   })
+  const [appSettings, setAppSettings] = useState(null)
   const [booting, setBooting] = useState(true)
 
   useEffect(() => {
+    supabase.rpc('get_app_settings').then(({ data }) => {
+      if (data) setAppSettings(data)
+    }).catch(() => { })
+  }, [])
+
+  const effectiveTheme = appSettings?.force_theme || theme
+  useEffect(() => {
     try { localStorage.setItem('vcz_theme', theme) } catch { }
-    document.documentElement.dataset.theme = theme
-  }, [theme])
+    document.documentElement.dataset.theme = effectiveTheme
+  }, [effectiveTheme, theme])
 
   useEffect(() => {
     try {
@@ -2614,14 +2889,32 @@ function App() {
 
   if (booting) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-sm text-muted-foreground">Loading…</p></div>
 
+  const isAdminSession = !!getAdminToken()
+  const inMaintenance = appSettings?.maintenance === 'true' && !isAdminSession
+
+  if (inMaintenance) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6" data-theme={effectiveTheme}>
+        <div className="max-w-sm w-full text-center">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-5">
+            <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <h1 className="text-[22px] font-black text-foreground mb-2">Under Maintenance</h1>
+          <p className="text-[14px] text-muted-foreground leading-relaxed mb-6">{appSettings?.maintenance_message || 'We are doing some maintenance right now. Please check back in a few minutes.'}</p>
+          <button onClick={() => setView('auth')} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-[14px] hover:opacity-90 transition-opacity">Admin Sign In</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="app-shell" data-theme={theme}>
-      {view === 'landing' && <LandingPage isLoggedIn={!!currentUser} onNavigate={navigate} />}
+    <div className="app-shell" data-theme={effectiveTheme}>
+      {view === 'landing' && <LandingPage isLoggedIn={!!currentUser} onNavigate={navigate} settings={appSettings} />}
       {view === 'auth' && <AuthPage onLogin={handleLogin} onAdminLogin={handleAdminLogin} onNavigate={navigate} />}
-      {view === 'cards' && <CardsPage currentUser={currentUser} onNavigate={navigate} />}
-      {view === 'pricing' && <PricingPage currentUser={currentUser} onNavigate={navigate} />}
-      {view === 'account' && <AccountPage currentUser={currentUser} onLogout={handleLogout} onNavigate={navigate} theme={theme} onThemeChange={setTheme} />}
-      {view === 'admin' && <AdminPanelPage onNavigate={navigate} />}
+      {view === 'cards' && <CardsPage currentUser={currentUser} onNavigate={navigate} settings={appSettings} />}
+      {view === 'pricing' && <PricingPage currentUser={currentUser} onNavigate={navigate} settings={appSettings} />}
+      {view === 'account' && <AccountPage currentUser={currentUser} onLogout={handleLogout} onNavigate={navigate} theme={effectiveTheme} onThemeChange={setTheme} />}
+      {view === 'admin' && <AdminPanelPage onNavigate={navigate} settings={appSettings} onSettingsChange={setAppSettings} />}
     </div>
   )
 }
