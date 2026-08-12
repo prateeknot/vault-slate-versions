@@ -131,7 +131,9 @@ function VirtualCardVisual({ card, flipped = false, onFlip }) {
       className="relative w-full cursor-pointer select-none card-float"
       style={{ aspectRatio: '1.586', perspective: 1000 }}
       onClick={onFlip}
+      onKeyDown={onFlip ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFlip() } } : undefined}
       role="button"
+      tabIndex={onFlip ? 0 : -1}
       aria-label={flipped ? 'Show card front' : 'Show card back'}
     >
       <div
@@ -309,7 +311,18 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
 }
 
 // ─── LANDING PAGE ─────────────────────────────────────────────────────────────
-function LandingPage({ isLoggedIn, onNavigate, availableCount }) {
+function LandingPage({ isLoggedIn, onNavigate }) {
+  const [availableCount, setAvailableCount] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    supabase.rpc('tier_stock').then(({ data }) => {
+      if (!active || !Array.isArray(data)) return
+      setAvailableCount(data.reduce((s, i) => s + (i.available || 0), 0))
+    }).catch(() => { })
+    return () => { active = false }
+  }, [])
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
@@ -332,7 +345,7 @@ function LandingPage({ isLoggedIn, onNavigate, availableCount }) {
         <section className="pt-10 pb-8">
           <div className="inline-flex items-center gap-2 bg-brand-dim border border-brand/15 rounded-full px-3 py-1 mb-5">
             <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-            <span className="text-[11px] text-brand font-semibold tracking-wide uppercase">{availableCount ?? 8} cards available now</span>
+            <span className="text-[11px] text-brand font-semibold tracking-wide uppercase">{availableCount ?? '…'} cards available now</span>
           </div>
           <h1 className="text-[30px] leading-[1.2] font-bold text-foreground tracking-tight text-balance">
             Temporary virtual cards,{' '}
@@ -408,13 +421,14 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
-  const [plan, setPlan] = useState('free')
+  const [plan] = useState('free')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [googleNotice, setGoogleNotice] = useState(false)
 
   const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAEMyGZlQOjX7EQJK'
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [turnstileFailed, setTurnstileFailed] = useState(false)
   const turnstileRef = useRef(null)
   const turnstileIdRef = useRef(null)
 
@@ -434,18 +448,23 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
   }, [SITE_KEY])
 
   useEffect(() => {
+    const failTimer = setTimeout(() => {
+      if (!window.turnstile) setTurnstileFailed(true)
+    }, 6000)
     if (window.turnstile) {
       renderTurnstile()
     } else {
       const checkInterval = setInterval(() => {
         if (window.turnstile) {
           clearInterval(checkInterval)
+          clearTimeout(failTimer)
+          setTurnstileFailed(false)
           renderTurnstile()
         }
       }, 300)
-      return () => clearInterval(checkInterval)
+      return () => { clearInterval(checkInterval); clearTimeout(failTimer) }
     }
-    return undefined
+    return () => clearTimeout(failTimer)
   }, [renderTurnstile])
 
   useEffect(() => () => {
@@ -473,7 +492,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
     if (!isLogin && !name) { setError('Please enter your name.'); return }
     if (!isLogin && (name.length < 2 || name.length > 50)) { setError('Name must be 2-50 characters.'); return }
     if (!isLogin && !/^[a-zA-Z\s'-]+$/.test(name)) { setError('Name can only contain letters, spaces, hyphens, and apostrophes.'); return }
-    if (SITE_KEY && !turnstileToken) { setError('Please complete the security check.'); return }
+    if (SITE_KEY && !turnstileToken && !turnstileFailed) { setError('Please complete the security check.'); return }
     setLoading(true)
     try {
       if (SITE_KEY && turnstileToken) {
@@ -528,8 +547,13 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
   }
 
   const handleAdminKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !adminCode[index] && index > 0) {
-      document.getElementById(`acode-${index - 1}`)?.focus()
+    if (e.key === 'Backspace') {
+      if (adminCode[index]) {
+        const next = [...adminCode]; next[index] = ''; setAdminCode(next)
+      } else if (index > 0) {
+        const next = [...adminCode]; next[index - 1] = ''; setAdminCode(next)
+        document.getElementById(`acode-${index - 1}`)?.focus()
+      }
     }
   }
 
@@ -644,20 +668,10 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
             </div>
 
             <div ref={turnstileRef} className="flex justify-center" />
+            {turnstileFailed && <p className="text-center text-[11px] text-amber-600">Security check unavailable — you can continue without it.</p>}
 
             {!isLogin && (
-              <div>
-                <p className="text-[12px] text-foreground font-semibold mb-2">Choose Plan</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[{ id: 'free', label: 'Free', price: '₹0' }, { id: 'pro', label: 'Pro', price: '₹99/mo' }, { id: 'max', label: 'Max', price: '₹199/mo' }].map((p) => (
-                    <button key={p.id} type="button" onClick={() => setPlan(p.id)}
-                      className={`py-2.5 rounded-xl border text-center transition-all ${plan === p.id ? 'border-brand bg-brand-dim' : 'border-border bg-surface'}`}>
-                      <p className={`text-[13px] font-bold ${plan === p.id ? 'text-brand' : 'text-foreground'}`}>{p.label}</p>
-                      <p className={`text-[11px] ${plan === p.id ? 'text-brand/70' : 'text-muted-foreground'}`}>{p.price}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <p className="text-center text-[11px] text-muted-foreground">Free plan on signup — upgrade to a Top-Up Pack anytime.</p>
             )}
 
             {error && (
@@ -686,7 +700,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
               <span className="google-mark" aria-hidden="true">G</span>
               {googleLoading ? 'Redirecting to Google…' : 'Continue with Google'}
             </button>
-            {googleNotice && <p role="status" className="mt-2 text-center text-[11px] text-red-500">Google sign-in failed. Is the Google provider enabled in Supabase? (Settings → Authentication → Providers)</p>}
+            {googleNotice && <p role="status" className="mt-2 text-center text-[11px] text-red-500">Google sign-in is unavailable right now. Please try again in a moment.</p>}
           </div>
         </div>
 
@@ -885,7 +899,7 @@ function CardsPage({ currentUser, onNavigate }) {
       if (error) throw error
       if (!data || data.length === 0) throw new Error('NO_FREE_CARDS')
       showToast('🎉 Free card claimed with random USD balance!')
-      fetchData()
+      await fetchData()
     } catch (err) {
       console.error('Claim free card error:', err)
       const msg = String(err.message || err)
@@ -965,8 +979,6 @@ function CardsPage({ currentUser, onNavigate }) {
     )
   }
 
-  const remainingClaims = Math.max(0, planLimit - claimed.length)
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
@@ -978,7 +990,7 @@ function CardsPage({ currentUser, onNavigate }) {
             <span className="font-bold text-foreground">VCardz</span>
           </div>
           {!isGuest && (
-            <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full ${userPlan === 'max' ? 'bg-amber-100 text-amber-700 border border-amber-200' : userPlan === 'pro' ? 'bg-brand-dim text-brand border border-brand/20' : 'bg-surface-2 text-muted-foreground border border-border'}`}>
+            <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full ${['max', 'galaxy', 'cosmos', 'infinity'].includes(userPlan) ? 'bg-amber-100 text-amber-700 border border-amber-200' : ['pro', 'spark', 'orbit', 'nova'].includes(userPlan) ? 'bg-brand-dim text-brand border border-brand/20' : 'bg-surface-2 text-muted-foreground border border-border'}`}>
               {userPlan} plan
             </span>
           )}
@@ -987,22 +999,28 @@ function CardsPage({ currentUser, onNavigate }) {
 
       <main className="flex-1 max-w-md mx-auto w-full px-4 pt-4 pb-28">
         <div className="relative mb-4">
-          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
-          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, bank, provider..."
-            className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/10 transition-colors" />
+          {!isGuest && (
+            <>
+              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
+              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, bank, provider..."
+                className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/10 transition-colors" />
+            </>
+          )}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-none">
-          {CATEGORIES.map((cat) => {
-            const isActive = selectedCategory === cat
-            return (
-              <button key={cat} onClick={() => setSelectedCategory(cat)}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all duration-200 border ${isActive ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-white border-border text-muted-foreground'}`}>
-                {cat}
-              </button>
-            )
-          })}
-        </div>
+        {!isGuest && (
+          <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-none">
+            {CATEGORIES.map((cat) => {
+              const isActive = selectedCategory === cat
+              return (
+                <button key={cat} onClick={() => setSelectedCategory(cat)}
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all duration-200 border ${isActive ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-white border-border text-muted-foreground'}`}>
+                  {cat}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {!isGuest && (
           <div className="flex items-center justify-between mb-4">
@@ -1054,7 +1072,15 @@ function CardsPage({ currentUser, onNavigate }) {
             <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center mb-4">
               <svg className="w-6 h-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
             </div>
-            <p className="text-muted-foreground text-[14px]">No cards found</p>
+            {isGuest ? (
+              <>
+                <p className="text-muted-foreground text-[14px]">Sign up to claim your free virtual card</p>
+                <button onClick={() => onNavigate('auth')} className="mt-4 w-full max-w-xs py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 active:scale-[0.98] transition-all shadow-md">Create free account</button>
+                <button onClick={() => onNavigate('pricing')} className="mt-2 w-full max-w-xs py-3 rounded-xl bg-white border border-border text-foreground font-semibold text-[14px] hover:border-brand/40 transition-colors">View Plans</button>
+              </>
+            ) : (
+              <p className="text-muted-foreground text-[14px]">No cards found</p>
+            )}
           </div>
         )}
       </main>
@@ -1077,6 +1103,18 @@ function PricingPage({ currentUser, onNavigate }) {
   const [toast, setToast] = useState(null)
   const [telegramCard, setTelegramCard] = useState(null)
   const [telegramLoading, setTelegramLoading] = useState(false)
+  const [stock, setStock] = useState({})
+  const navTimerRef = useRef(null)
+
+  useEffect(() => {
+    supabase.rpc('tier_stock').then(({ data }) => {
+      const m = {}
+      ;(data || []).forEach((i) => { m[i.tier] = i.available || 0 })
+      setStock(m)
+    }).catch(() => { })
+  }, [])
+
+  useEffect(() => () => { if (navTimerRef.current) clearTimeout(navTimerRef.current) }, [])
 
   // Check URL for telegram_id param (returning from Telegram payment)
   useEffect(() => {
@@ -1118,10 +1156,15 @@ function PricingPage({ currentUser, onNavigate }) {
 
       showToast(`🎉 Payment Confirmed! Card updated to ${selectedPack.name} Pack with $${selectedPack.balance_usd} USD!`)
       setSelectedPack(null)
-      setTimeout(() => onNavigate('cards'), 1200)
+      navTimerRef.current = setTimeout(() => onNavigate('cards'), 1200)
     } catch (err) {
       console.error('Payment error:', err)
-      showToast('Payment could not be completed. Please try again.', 'error')
+      const msg = String(err.message || err)
+      if (msg.includes('NO_CARD_AVAILABLE')) {
+        showToast('This pack is sold out right now — no cards left in this tier. Please try again later.', 'error')
+      } else {
+        showToast('Payment could not be completed. Please try again.', 'error')
+      }
     } finally {
       setLoading(false)
     }
@@ -1155,13 +1198,16 @@ function PricingPage({ currentUser, onNavigate }) {
               </div>
 
               <div className="text-right space-y-1.5">
-                <p className="text-[18px] font-black text-foreground">₹{p.price_inr}</p>
-<button
-                  onClick={() => { setSelectedPack(p) }}
-                  className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full"
-                >
-                  Buy ₹
-                </button>
+                <p className="text-[18px] font-black text-foreground">₹{p.price_inr}</p>                {stock[p.id] === 0 ? (
+                  <span className="block w-full text-center px-3.5 py-1.5 rounded-xl bg-red-50 text-red-600 font-bold text-[12px] border border-red-200">Sold out</span>
+                ) : (
+                  <button
+                    onClick={() => { setSelectedPack(p) }}
+                    className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full"
+                  >
+                    Buy ₹
+                  </button>
+                )}
                 <button
                   onClick={() => window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')}
                   className="px-3.5 py-1.5 rounded-xl bg-slate-600 text-white font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
@@ -1574,6 +1620,9 @@ function AdminPanelPage({ onNavigate }) {
 
   const handleSaveCard = async () => {
     if (!formData.card_number || !formData.name || !formData.expiry || !formData.cvv) { showToast('Fill all required fields', 'error'); return }
+    const cardDigits = String(formData.card_number).replace(/\D/g, '')
+    if (cardDigits.length < 12 || cardDigits.length > 19) { showToast('Card number must be 12-19 digits', 'error'); return }
+    if (!/^\d{2}\/\d{2}$/.test(formData.expiry)) { showToast('Expiry must be MM/YY', 'error'); return }
     const payload = {
       p_token: token,
       p_id: editingCard?.id ?? null,
