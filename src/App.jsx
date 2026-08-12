@@ -14,6 +14,9 @@ const V2_PACKS = [
   { id: 'infinity', name: 'Infinity', price_inr: 1599, balance_usd: 82, stars: 820, badge: 'Max Balance' },
 ]
 
+// ─── Version (v1 → v2 → v3 → v4 → v5) ─────────────────────────────────────────
+const APP_VERSION = '5.0.0'
+
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
 const BOT_API_BASE = 'https://temp-card-bot.onrender.com'
@@ -786,14 +789,15 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
 }
 
 // ─── Card List Item ───────────────────────────────────────────────────────────
-function CardListItem({ card, onOpen }) {
+function CardListItem({ card, onOpen, compact = false }) {
   const catColor = CATEGORY_COLORS[card.category] ?? CATEGORY_COLORS.Other
   return (
     <button
       onClick={() => onOpen(card)}
-      className="card-item-glow w-full text-left bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3.5 active:scale-[0.98] transition-all duration-200 hover:shadow-soft"
+      className={`card-item-glow relative w-full text-left bg-white border border-border rounded-2xl ${compact ? 'p-3' : 'p-3.5'} flex items-center gap-3.5 active:scale-[0.98] transition-all duration-200 hover:shadow-soft`}
       style={{ ['--glow-color']: CARD_GLOW[card.provider] }}
     >
+      {card.is_favorite && !compact && <span className="absolute top-2 right-2 text-[12px] text-amber-500" aria-label="Favorite">★</span>}
       <div className={`relative w-14 h-10 rounded-xl bg-gradient-to-br ${CARD_GRADIENTS[card.provider] || CARD_GRADIENTS.Visa} flex flex-col items-start justify-between p-1.5 shrink-0 overflow-hidden`}>
         <div className="absolute inset-0 rounded-xl" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.14) 0%,transparent 55%)' }} />
         <div className="w-4 h-3 rounded-sm relative z-10" style={{ background: 'linear-gradient(135deg,#dfe5ec,#b8c2d1)', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
@@ -808,12 +812,12 @@ function CardListItem({ card, onOpen }) {
           {card.category && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${catColor.bg} ${catColor.text}`}>{card.category}</span>}
         </div>
         <p className="text-muted-foreground text-[12px] mt-0.5 font-mono tracking-wide">{card.card_number ? maskCardNumber(card.card_number) : (card.last4 ? '•••• •••• •••• ' + card.last4 : '•••• •••• •••• ••••')}</p>
-        <div className="flex items-center gap-1.5 mt-1">
+        <div className={`flex items-center gap-1.5 mt-1 ${compact ? 'flex-wrap' : ''}`}>
           <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${card.tier === 'free' ? 'bg-surface-2 text-muted-foreground' : 'bg-brand-dim text-brand'}`}>{card.tier || 'free'}</span>
           <span className="text-[11px] text-emerald-600 font-bold">${card.balance_usd ?? 0} USD</span>
-          <span className="text-[11px] text-muted-foreground/60 font-medium">{card.bank}</span>
-          {card.expiry && <><span className="text-muted-foreground/30 text-[10px]">•</span><span className="text-[11px] text-muted-foreground/60">Exp {card.expiry}</span></>}
+          {!compact && <><span className="text-[11px] text-muted-foreground/60 font-medium">{card.bank}</span>{card.expiry && <><span className="text-muted-foreground/30 text-[10px]">•</span><span className="text-[11px] text-muted-foreground/60">Exp {card.expiry}</span></>}</>}
         </div>
+        {!compact && card.note && <p className="text-[11px] text-brand font-semibold mt-1 truncate">🏷 {card.note}</p>}
       </div>
 
       <div className="shrink-0 w-7 h-7 rounded-full bg-surface flex items-center justify-center border border-border">
@@ -824,7 +828,9 @@ function CardListItem({ card, onOpen }) {
 }
 
 // ─── Card Detail Modal ────────────────────────────────────────────────────────
-function CardDetailModal({ card, flipped, onFlip, onClose, onCopy, isPreview = false }) {
+function CardDetailModal({ card, flipped, onFlip, onClose, onCopy, isPreview = false, onRename, onToggleFav }) {
+  const [noteInput, setNoteInput] = useState(card?.note || '')
+  const isOwned = !!card?.uc_id
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
@@ -841,6 +847,27 @@ function CardDetailModal({ card, flipped, onFlip, onClose, onCopy, isPreview = f
         </div>
         <div className="mb-6"><VirtualCardVisual card={card} flipped={flipped} onFlip={onFlip} /></div>
         {isPreview && <div className="mb-4 rounded-2xl border border-brand/20 bg-brand-dim px-4 py-3 text-[12px] font-medium text-brand">This is a display-only sample card. Its details are for preview purposes only.</div>}
+        {isOwned && (
+          <div className="mb-4 rounded-2xl border border-border bg-surface p-3.5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Nickname</p>
+              {card?.is_favorite
+                ? <button onClick={() => onToggleFav?.(card)} className="text-[11px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1"><span className="text-[13px]">★</span> Favorite</button>
+                : <button onClick={() => onToggleFav?.(card)} className="text-[11px] font-bold text-muted-foreground hover:text-brand flex items-center gap-1"><span className="text-[13px]">☆</span> Favorite</button>}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') onRename?.(noteInput) }}
+                placeholder="e.g. Netflix card"
+                maxLength={40}
+                className="flex-1 bg-white border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/60 transition-colors"
+              />
+              <button onClick={() => onRename?.(noteInput)} className="shrink-0 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity">Save</button>
+            </div>
+          </div>
+        )}
         <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold mb-2 px-1">Card Information</p>
         <div className="space-y-2">
           {[
@@ -887,9 +914,11 @@ function CardsPage({ currentUser, onNavigate, settings }) {
   const [flipped, setFlipped] = useState(false)
   const [toast, setToast] = useState(null)
   const [claimed, setClaimed] = useState([])
-  const [planLimit, setPlanLimit] = useState(3)
+  const [overview, setOverview] = useState(null)
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState(false)
+  const [layout, setLayout] = useState('list')
+  const [favOnly, setFavOnly] = useState(false)
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
@@ -919,6 +948,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
 
   const normalizeCards = (rows) => (rows || []).map((c) => ({
     id: c.id,
+    uc_id: c.uc_id,
     card_number: c.card_number,
     cardholder_name: c.cardholder_name,
     name: c.cardholder_name || c.label || 'Card',
@@ -931,6 +961,8 @@ function CardsPage({ currentUser, onNavigate, settings }) {
     is_active: true,
     tier: c.tier || 'free',
     balance_usd: c.balance_usd ?? TIER_BALANCES[c.tier || 'free'] ?? 0,
+    note: c.note || '',
+    is_favorite: !!c.is_favorite,
     created_at: c.created_at,
   }))
 
@@ -947,7 +979,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
       ])
       const overview = overviewRes.data || {}
       const rows = normalizeCards(cardsRes.data)
-      setPlanLimit(overview.card_limit ?? 1)
+      setOverview(overview)
       setClaimed(rows)
     } catch (err) {
       console.error('Fetch error:', err)
@@ -959,18 +991,75 @@ function CardsPage({ currentUser, onNavigate, settings }) {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // Realtime: cards table (admin edits) + user_cards table (admin assigning/removing
+  // cards, user nickname/favorite changes). Both broadcast the user's own rows only
+  // (RLS), so admin actions now reach the user within seconds instead of minutes.
   useEffect(() => {
     if (isGuest) return
-    const channel = supabase.channel('cards-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cards' }, () => fetchData())
-      .subscribe()
-    return () => supabase.removeChannel(channel)
+    let channel = null
+    let cancelled = false
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return
+      const uid = data.user?.id
+      if (uid) {
+        channel = supabase.channel('cards-realtime')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'cards' }, () => fetchData())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'user_cards', filter: `user_id=eq.${uid}` }, () => fetchData())
+          .subscribe()
+      }
+    })
+    return () => { cancelled = true; if (channel) supabase.removeChannel(channel) }
   }, [isGuest, fetchData])
 
+  const expiringSoon = claimed.filter((c) => {
+    const m = String(c.expiry || '').match(/^(\d{2})\/(\d{2})$/)
+    if (!m) return false
+    const exp = new Date(2000 + parseInt(m[2], 10), parseInt(m[1], 10), 1).getTime()
+    const now = Date.now()
+    return exp >= now && exp < now + 60 * 24 * 60 * 60 * 1000
+  })
+
   const visibleClaimed = claimed.filter((c) =>
+    (!favOnly || c.is_favorite) &&
     (selectedCategory === 'All' || c.category === selectedCategory) &&
     (!search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.bank || '').toLowerCase().includes(search.toLowerCase()) || (c.provider || '').toLowerCase().includes(search.toLowerCase()))
   )
+
+  const renameCard = async (note) => {
+    if (!selectedCard?.uc_id) return
+    try {
+      const { error } = await supabase.rpc('my_card_update', { p_uc_id: selectedCard.uc_id, p_note: String(note || '').slice(0, 40) })
+      if (error) throw error
+      setSelectedCard((prev) => ({ ...prev, note: String(note || '').slice(0, 40) }))
+      setClaimed((prev) => prev.map((c) => (c.uc_id === selectedCard.uc_id ? { ...c, note: String(note || '').slice(0, 40) } : c)))
+      showToast('Nickname saved')
+    } catch (err) { showToast('Could not save: ' + err.message, 'error') }
+  }
+
+  const toggleFavorite = async (card) => {
+    if (!card?.uc_id) return
+    const next = !card.is_favorite
+    try {
+      const { error } = await supabase.rpc('my_card_update', { p_uc_id: card.uc_id, p_favorite: next })
+      if (error) throw error
+      setSelectedCard((prev) => prev && prev.uc_id === card.uc_id ? { ...prev, is_favorite: next } : prev)
+      setClaimed((prev) => prev.map((c) => (c.uc_id === card.uc_id ? { ...c, is_favorite: next } : c)))
+      showToast(next ? 'Added to favorites' : 'Removed from favorites')
+    } catch (err) { showToast('Could not update: ' + err.message, 'error') }
+  }
+
+  const exportMyCards = () => {
+    try {
+      const blob = new Blob([JSON.stringify(claimed, null, 2)], { type: 'application/json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `vcardz-my-cards-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 100)
+      showToast('Your cards exported')
+    } catch { showToast('Export failed', 'error') }
+  }
 
   if (loading) {
     return (
@@ -1017,10 +1106,14 @@ function CardsPage({ currentUser, onNavigate, settings }) {
 
         {!isGuest && (
           <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-none">
+            <button onClick={() => setFavOnly(!favOnly)}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all duration-200 border ${favOnly ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white border-border text-muted-foreground'}`}>
+              ★ Favorites{claimed.some((c) => c.is_favorite) ? ` (${claimed.filter((c) => c.is_favorite).length})` : ''}
+            </button>
             {CATEGORIES.map((cat) => {
-              const isActive = selectedCategory === cat
+              const isActive = selectedCategory === cat && !favOnly
               return (
-                <button key={cat} onClick={() => setSelectedCategory(cat)}
+                <button key={cat} onClick={() => { setFavOnly(false); setSelectedCategory(cat) }}
                   className={`shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all duration-200 border ${isActive ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-white border-border text-muted-foreground'}`}>
                   {cat}
                 </button>
@@ -1029,12 +1122,60 @@ function CardsPage({ currentUser, onNavigate, settings }) {
           </div>
         )}
 
+        {!isGuest && claimed.length > 0 && (
+          <div className="rounded-2xl border border-border bg-white shadow-soft p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Total Balance</p>
+                <p className="text-[22px] font-black text-foreground mt-0.5">${Number(overview?.total_balance ?? 0).toFixed(2)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[12px] font-bold text-foreground">{claimed.length} card{claimed.length !== 1 ? 's' : ''}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{userPlan} plan</p>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold mb-1">
+                <span>Free claim limit</span>
+                <span>{claimed.filter((c) => c.tier === 'free').length} / {overview?.card_limit ?? 1}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${Math.min(100, (claimed.filter((c) => c.tier === 'free').length / Math.max(1, overview?.card_limit ?? 1)) * 100)}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!isGuest && expiringSoon.length > 0 && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-3 mb-4">
+            <span className="text-[18px]">⏰</span>
+            <div className="flex-1">
+              <p className="text-[12px] font-bold text-amber-700">{expiringSoon.length} card{expiringSoon.length !== 1 ? 's' : ''} expiring soon</p>
+              <p className="text-[11px] text-amber-600">Copy details before they expire.</p>
+            </div>
+            <button onClick={() => { setSelectedCard(expiringSoon[0]); setFlipped(false) }} className="text-[11px] font-bold text-amber-700 bg-white border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors">View</button>
+          </div>
+        )}
+
         {!isGuest && (
           <div className="flex items-center justify-between mb-4">
             <p className="text-[12px] text-muted-foreground">
-              <span className="text-foreground font-semibold">{claimed.length}</span> virtual card{claimed.length !== 1 ? 's' : ''} active
+              <span className="text-foreground font-semibold">{visibleClaimed.length}</span> virtual card{visibleClaimed.length !== 1 ? 's' : ''} shown
             </p>
-            <button onClick={() => onNavigate('pricing')} className="text-[11px] text-brand font-semibold hover:underline">Add a card</button>
+            <div className="flex items-center gap-2">
+              <button onClick={exportMyCards} title="Export my cards" aria-label="Export my cards" className="w-8 h-8 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-brand hover:border-brand/40 transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+              </button>
+              <div className="flex bg-surface border border-border rounded-xl p-0.5">
+                <button onClick={() => setLayout('list')} aria-label="List view" className={`w-8 h-7 rounded-lg flex items-center justify-center transition-colors ${layout === 'list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                </button>
+                <button onClick={() => setLayout('grid')} aria-label="Grid view" className={`w-8 h-7 rounded-lg flex items-center justify-center transition-colors ${layout === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+                </button>
+              </div>
+              <button onClick={() => onNavigate('pricing')} className="text-[11px] text-brand font-semibold hover:underline">Add a card</button>
+            </div>
           </div>
         )}
 
@@ -1078,9 +1219,9 @@ function CardsPage({ currentUser, onNavigate, settings }) {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className={layout === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
           {visibleClaimed.map((card) => (
-            <CardListItem key={card.id} card={card} onOpen={(c) => { setSelectedCard(c); setFlipped(false) }} />
+            <CardListItem key={card.id} card={card} compact={layout === 'grid'} onOpen={(c) => { setSelectedCard(c); setFlipped(false) }} />
           ))}
         </div>
 
@@ -1105,10 +1246,63 @@ function CardsPage({ currentUser, onNavigate, settings }) {
       {selectedCard && (
         <CardDetailModal card={selectedCard} flipped={flipped} onFlip={() => setFlipped(!flipped)} onClose={() => setSelectedCard(null)}
           isPreview={selectedCard.id === PREVIEW_CARD.id}
-          onCopy={(_, l) => showToast(`${l} copied!`)} />
+          onCopy={(_, l) => showToast(`${l} copied!`)}
+          onRename={renameCard}
+          onToggleFav={toggleFavorite} />
       )}
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
       <BottomNav view="cards" isLoggedIn={!!currentUser} onNavigate={onNavigate} />
+    </div>
+  )
+}
+
+// ─── FAQ / HELP PAGE ───────────────────────────────────────────────────────────
+function FAQPage({ onNavigate }) {
+  const [open, setOpen] = useState(null)
+  const items = [
+    { q: 'How do I get my first card?', a: 'Sign up for free and claim your free virtual card on the Cards page. It comes with a random USD balance ($1–$15). One free card per account.' },
+    { q: 'How do Top-Up Packs work?', a: 'Packs (Spark ₹299 up to Infinity ₹1599) add a higher-balance card to your account. Tap any pack on the Plans page to pay via Telegram — after payment, your card is assigned to your account automatically.' },
+    { q: 'What is a virtual card used for?', a: 'These are virtual card details (number, expiry, CVV) designed for free trial sign-ups and verification. They work like a prepaid-style card for online use.' },
+    { q: 'What happens when a card expires?', a: 'Expired cards can no longer be used for new sign-ups. Copy important details before the expiry date — you will see an amber alert on the Cards page for cards expiring within 60 days.' },
+    { q: 'Can I rename or favourite a card?', a: 'Yes — open any card and use the Nickname field or the star (Favorite) button. Favorites can be filtered with the ★ chip on the Cards page.' },
+    { q: 'My card did not arrive after payment. What now?', a: 'Contact us via Telegram (@' + TELEGRAM_BOT_USERNAME + ') with your order details. Assignments are instant, so if it has been more than a few minutes something is wrong — our team will fix it.' },
+    { q: 'Is my card data secure?', a: 'All card data is stored in a protected database and only your own cards are shown to you. Admin access requires a separate 6-digit code.' },
+  ]
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+        <div className="max-w-md mx-auto px-4 flex items-center h-14">
+          <button onClick={() => onNavigate('account')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
+            </div>
+            <span className="font-bold text-foreground">Help & FAQ</span>
+          </div>
+        </div>
+      </header>
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-6 pb-28 space-y-2.5">
+        {items.map((item, i) => {
+          const isOpen = open === i
+          return (
+            <div key={i} className="bg-white border border-border rounded-2xl overflow-hidden shadow-soft">
+              <button
+                onClick={() => setOpen(isOpen ? null : i)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-surface transition-colors"
+                aria-expanded={isOpen}
+              >
+                <p className="flex-1 text-[13px] font-semibold text-foreground">{item.q}</p>
+                <svg className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+              </button>
+              {isOpen && <p className="px-4 pb-4 text-[13px] text-muted-foreground leading-relaxed border-t border-border pt-3">{item.a}</p>}
+            </div>
+          )
+        })}
+        <p className="text-center text-[11px] text-muted-foreground pt-4">Still stuck? Message us on Telegram: @{TELEGRAM_BOT_USERNAME}</p>
+      </main>
+      <BottomNav view="account" isLoggedIn={true} onNavigate={onNavigate} />
     </div>
   )
 }
@@ -1203,7 +1397,7 @@ function PricingPage({ currentUser, onNavigate, settings }) {
 
       <main className="flex-1 max-w-md mx-auto w-full px-4 py-5 pb-28">
         <p className="text-muted-foreground text-[13px] mb-5 leading-relaxed text-center">
-          Choose a pack to assign a virtual card loaded with your chosen **USD Balance ($)**!
+          Choose a pack to assign a virtual card loaded with your chosen USD Balance ($)!
         </p>
 
         <div className="space-y-3.5">
@@ -1238,6 +1432,41 @@ function PricingPage({ currentUser, onNavigate, settings }) {
             </div>
           ))}
         </div>
+
+        <section className="mt-8">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold mb-3 text-center">Compare All Packs</p>
+          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-soft">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-border bg-surface">
+                  <th className="px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Pack</th>
+                  <th className="px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Price</th>
+                  <th className="px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Balance</th>
+                  <th className="px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Value</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {V2_PACKS.map((p) => {
+                  const perDollar = (p.price_inr / p.balance_usd).toFixed(0)
+                  return (
+                    <tr key={p.id} className="hover:bg-surface/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-[13px] text-foreground">{p.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.badge}</p>
+                      </td>
+                      <td className="px-4 py-3 text-[13px] font-bold text-foreground">₹{p.price_inr}</td>
+                      <td className="px-4 py-3 text-[13px] font-bold text-emerald-600">${p.balance_usd}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] font-bold bg-brand-dim text-brand px-2 py-0.5 rounded-full">₹{perDollar}/$</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-center text-[10px] text-muted-foreground mt-2">Lower ₹/$ = better value. All packs include instant Telegram delivery.</p>
+        </section>
       </main>
 
       {/* Payment Modal */}
@@ -1335,15 +1564,63 @@ const APP_THEMES = [
 ]
 
 // ─── ACCOUNT PAGE ─────────────────────────────────────────────────────────────
-function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange }) {
+function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange, onUserUpdate }) {
   const [showAdminInput, setShowAdminInput] = useState(false)
   const [adminCodeInput, setAdminCodeInput] = useState('')
+  const [nameInput, setNameInput] = useState(currentUser?.name || '')
+  const [savingName, setSavingName] = useState(false)
+  const [nameMsg, setNameMsg] = useState('')
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
+  const [pwBusy, setPwBusy] = useState(false)
+  const [pwMsg, setPwMsg] = useState(null)
+  const [pwErr, setPwErr] = useState('')
   const name = currentUser?.name || 'Guest'
   const email = currentUser?.email || ''
   const planName = currentUser?.plan || 'free'
   const initials = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'G'
   const currentPack = V2_PACKS.find((p) => p.id === planName)
   const planColors = { free: 'bg-surface-2 text-muted-foreground border-border', spark: 'bg-brand-dim text-brand border-brand/20', orbit: 'bg-brand-dim text-brand border-brand/20', nova: 'bg-brand-dim text-brand border-brand/20', galaxy: 'bg-amber-100 text-amber-700 border-amber-200', cosmos: 'bg-amber-100 text-amber-700 border-amber-200', infinity: 'bg-amber-100 text-amber-700 border-amber-200' }
+
+  const saveDisplayName = async () => {
+    const trimmed = nameInput.trim()
+    if (trimmed.length < 2 || trimmed.length > 50) { setNameMsg('Name must be 2-50 characters'); return }
+    if (!/^[a-zA-Z\s'-]+$/.test(trimmed)) { setNameMsg('Name can only contain letters, spaces, hyphens, and apostrophes'); return }
+    setSavingName(true)
+    setNameMsg('')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in')
+      const { error } = await supabase.from('profiles').update({ display_name: trimmed }).eq('id', user.id)
+      if (error) throw error
+      onUserUpdate?.({ name: trimmed })
+      setNameMsg('Name updated ✓')
+    } catch (err) {
+      setNameMsg('Could not update: ' + err.message)
+    } finally {
+      setSavingName(false)
+    }
+  }
+
+  const changePassword = async () => {
+    setPwErr('')
+    setPwMsg(null)
+    if (pw.next.length < 8) { setPwErr('New password must be at least 8 characters'); return }
+    if (!/[A-Z]/.test(pw.next) || !/[a-z]/.test(pw.next) || !/[0-9]/.test(pw.next)) { setPwErr('New password must contain uppercase, lowercase, and a number'); return }
+    if (pw.next !== pw.confirm) { setPwErr('New passwords do not match'); return }
+    setPwBusy(true)
+    try {
+      const { error: verifyErr } = await supabase.auth.signInWithPassword({ email, password: pw.current })
+      if (verifyErr) throw new Error('Current password is incorrect')
+      const { error } = await supabase.auth.updatePassword(pw.next)
+      if (error) throw error
+      setPwMsg({ ok: true, text: 'Password changed successfully ✓' })
+      setPw({ current: '', next: '', confirm: '' })
+    } catch (err) {
+      setPwMsg({ ok: false, text: err.message || 'Could not change password' })
+    } finally {
+      setPwBusy(false)
+    }
+  }
 
   const handleAdmin = async () => {
     if (adminCodeInput.length !== 6) return
@@ -1426,6 +1703,27 @@ function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange }
           </div>
         </section>
 
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-soft">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-[13px] text-foreground">Display Name</p>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-brand">v{APP_VERSION}</span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              maxLength={50}
+              placeholder="Your display name"
+              className="flex-1 bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/60 transition-colors"
+            />
+            <button onClick={saveDisplayName} disabled={savingName}
+              className="shrink-0 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 disabled:opacity-50 transition-opacity">
+              {savingName ? '…' : 'Save'}
+            </button>
+          </div>
+          {nameMsg && <p className={`mt-2 text-[11px] ${nameMsg.includes('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{nameMsg}</p>}
+        </div>
+
         <div className="bg-white border border-border rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border"><p className="font-semibold text-[13px] text-foreground">Account Details</p></div>
           <div className="divide-y divide-border">
@@ -1442,6 +1740,30 @@ function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange }
             ))}
           </div>
         </div>
+
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-soft">
+          <p className="font-semibold text-[13px] text-foreground mb-3">Change Password</p>
+          <div className="space-y-2.5">
+            <input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} placeholder="Current password"
+              className="w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/60 transition-colors" />
+            <input type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} placeholder="New password (8+ chars, upper+lower+number)"
+              className="w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/60 transition-colors" />
+            <input type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} placeholder="Confirm new password"
+              className="w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/60 transition-colors" />
+            <button onClick={changePassword} disabled={pwBusy}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-[13px] hover:opacity-90 disabled:opacity-50 transition-opacity">
+              {pwBusy ? 'Updating…' : 'Update Password'}
+            </button>
+            {pwErr && <p className="text-[11px] text-red-500">{pwErr}</p>}
+            {pwMsg && <p className={`text-[11px] ${pwMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>{pwMsg.text}</p>}
+          </div>
+        </div>
+
+        <button onClick={() => onNavigate('faq')} className="w-full bg-white border border-border rounded-2xl px-4 py-3.5 flex items-center gap-3 hover:border-brand/40 transition-colors shadow-soft">
+          <svg className="w-4 h-4 text-brand shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
+          <p className="text-[13px] font-semibold text-foreground text-left">Help & FAQ</p>
+          <svg className="w-4 h-4 text-muted-foreground ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+        </button>
 
         <div className="bg-white border border-border rounded-2xl overflow-hidden">
           <button
@@ -2887,6 +3209,14 @@ function App() {
     setView('auth')
   }, [])
 
+  const handleUserUpdate = useCallback((patch) => {
+    setCurrentUser((prev) => (prev ? { ...prev, ...patch } : prev))
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('vcz_user') || '{}')
+      sessionStorage.setItem('vcz_user', JSON.stringify({ ...saved, ...patch }))
+    } catch { }
+  }, [])
+
   if (booting) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-sm text-muted-foreground">Loading…</p></div>
 
   const isAdminSession = !!getAdminToken()
@@ -2913,7 +3243,8 @@ function App() {
       {view === 'auth' && <AuthPage onLogin={handleLogin} onAdminLogin={handleAdminLogin} onNavigate={navigate} />}
       {view === 'cards' && <CardsPage currentUser={currentUser} onNavigate={navigate} settings={appSettings} />}
       {view === 'pricing' && <PricingPage currentUser={currentUser} onNavigate={navigate} settings={appSettings} />}
-      {view === 'account' && <AccountPage currentUser={currentUser} onLogout={handleLogout} onNavigate={navigate} theme={effectiveTheme} onThemeChange={setTheme} />}
+      {view === 'account' && <AccountPage currentUser={currentUser} onLogout={handleLogout} onNavigate={navigate} theme={effectiveTheme} onThemeChange={setTheme} onUserUpdate={handleUserUpdate} />}
+      {view === 'faq' && <FAQPage onNavigate={navigate} />}
       {view === 'admin' && <AdminPanelPage onNavigate={navigate} settings={appSettings} onSettingsChange={setAppSettings} />}
     </div>
   )
