@@ -15,7 +15,7 @@ const V2_PACKS = [
 ]
 
 // ─── Version (v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9) ─────────────────────────
-const APP_VERSION = '9.0.0'
+const APP_VERSION = '9.0.1'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
@@ -24,6 +24,21 @@ const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
 // Owner's UPI QR image lives in /public/upi-qr.jpg (v9: real QR applied).
 const UPI_QR_IMAGE = '/upi-qr.jpg'
 const UPGRADE_COOLDOWN_HOURS = 24
+
+// ─── Shared static config (v9.0.1: module-level so values aren't rebuilt per render) ─
+const AUTH_INPUT_BASE = 'w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/15 transition-colors'
+const ADMIN_EMPTY_FORM = { card_number: '', name: '', expiry: '', cvv: '', provider: 'Visa', label: '', is_active: true, tier: 'free', balance_usd: 0 }
+const ADMIN_ALL_TIERS = [
+  { id: 'free', label: 'Free (₹0)' },
+  { id: 'spark', label: 'Spark ($15)' },
+  { id: 'orbit', label: 'Orbit ($26)' },
+  { id: 'nova', label: 'Nova ($32)' },
+  { id: 'galaxy', label: 'Galaxy ($49)' },
+  { id: 'cosmos', label: 'Cosmos ($67)' },
+  { id: 'infinity', label: 'Infinity ($82)' },
+]
+const ADMIN_RANDOM_NAMES = ['RAHUL SHARMA', 'PRIYA SINGH', 'AMIT VERMA', 'SNEHA GUPTA', 'VIKRAM NAIR', 'NEHA REDDY', 'ROHAN MISHRA', 'KAVYA PATEL', 'ANKIT JHA', 'POOJA IYER', 'SURESH KUMAR', 'MEERA JHA']
+const ADMIN_RANDOM_PROVIDERS = ['Visa', 'Mastercard', 'Amex', 'Discover', 'RuPay']
 
 const TIER_BALANCES = {
   free: 0,
@@ -431,7 +446,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
-  const [plan] = useState('free')
+  const plan = 'free' // static — no state needed (v9.0.1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [googleNotice, setGoogleNotice] = useState(false)
@@ -511,8 +526,9 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: turnstileToken }),
         })
-        const verifyJson = await verifyRes.json().catch(() => ({}))
-        if (!verifyRes.ok || !verifyJson.success) {
+        // Check the HTTP status BEFORE consuming the response body (v9.0.1)
+        const verifyJson = verifyRes.ok ? await verifyRes.json().catch(() => ({})) : null
+        if (!verifyJson?.success) {
           setError('Security verification failed. Please try again.')
           window.turnstile?.reset()
           setTurnstileToken('')
@@ -619,8 +635,6 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
     }
   }
 
-  const inputBase = 'w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/15 transition-colors'
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
@@ -662,16 +676,16 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
             {!isLogin && (
               <div>
                 <label htmlFor="name" className="block text-[12px] text-foreground font-semibold mb-1.5">Full Name</label>
-                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Rahul Sharma" className={inputBase} />
+                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Rahul Sharma" className={AUTH_INPUT_BASE} />
               </div>
             )}
             <div>
               <label htmlFor="email" className="block text-[12px] text-foreground font-semibold mb-1.5">Email</label>
-              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={inputBase} />
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={AUTH_INPUT_BASE} />
             </div>
             <div>
               <label htmlFor="password" className="block text-[12px] text-foreground font-semibold mb-1.5">Password</label>
-              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className={inputBase} />
+              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className={AUTH_INPUT_BASE} />
             </div>
 
             <div ref={turnstileRef} className="flex justify-center" />
@@ -756,7 +770,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
               <p className="text-[13px] text-muted-foreground text-center">Enter the 6-digit admin access code</p>
               <div className="flex items-center justify-center gap-2">
                 {adminCode.map((digit, i) => (
-                  <input key={i} id={`acode-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit}
+                  <input key={`acode-${i}`} id={`acode-${i}`} aria-label={`Admin code digit ${i + 1}`} type="text" inputMode="numeric" maxLength={1} value={digit}
                     onChange={(e) => handleAdminCodeChange(i, e.target.value)}
                     onKeyDown={(e) => handleAdminKeyDown(i, e)}
                     className={`w-11 h-12 text-center text-[18px] font-bold border rounded-xl bg-surface focus:outline-none focus:ring-2 transition-all ${adminError ? 'border-red-300 focus:ring-red-200 text-red-600' : 'border-border focus:border-brand/60 focus:ring-brand/15 text-foreground'}`} />
@@ -1168,7 +1182,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
           {!isGuest && (
             <>
               <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
-              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, bank, provider..."
+              <input type="search" aria-label="Search cards" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, bank, provider..."
                 className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/10 transition-colors" />
             </>
           )}
@@ -1338,7 +1352,7 @@ function FAQPage({ onNavigate }) {
         {items.map((item, i) => {
           const isOpen = open === i
           return (
-            <div key={i} className="bg-white border border-border rounded-2xl overflow-hidden shadow-soft">
+            <div key={item.q} className="bg-white border border-border rounded-2xl overflow-hidden shadow-soft">
               <button
                 onClick={() => setOpen(isOpen ? null : i)}
                 className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-surface transition-colors"
@@ -1893,20 +1907,9 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const [sessions, setSessions] = useState([])
   const [settingsDraft, setSettingsDraft] = useState({})
 
-  const EMPTY_FORM = { card_number: '', name: '', expiry: '', cvv: '', provider: 'Visa', label: '', is_active: true, tier: 'free', balance_usd: 0 }
-  const PLAN_TIERS = ['Free', 'Pro', 'Max']
-  const ALL_TIERS = [
-    { id: 'free', label: 'Free (₹0)' },
-    { id: 'spark', label: 'Spark ($15)' },
-    { id: 'orbit', label: 'Orbit ($26)' },
-    { id: 'nova', label: 'Nova ($32)' },
-    { id: 'galaxy', label: 'Galaxy ($49)' },
-    { id: 'cosmos', label: 'Cosmos ($67)' },
-    { id: 'infinity', label: 'Infinity ($82)' },
-  ]
   const [showCardModal, setShowCardModal] = useState(false)
   const [editingCard, setEditingCard] = useState(null)
-  const [formData, setFormData] = useState(EMPTY_FORM)
+  const [formData, setFormData] = useState(ADMIN_EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
   const [showBulkModal, setShowBulkModal] = useState(false)
@@ -1931,9 +1934,6 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const [payFilter, setPayFilter] = useState('all')
 
   const showToast = useCallback((msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500) }, [])
-
-  const RANDOM_NAMES = ['RAHUL SHARMA', 'PRIYA SINGH', 'AMIT VERMA', 'SNEHA GUPTA', 'VIKRAM NAIR', 'NEHA REDDY', 'ROHAN MISHRA', 'KAVYA PATEL', 'ANKIT JHA', 'POOJA IYER', 'SURESH KUMAR', 'MEERA JHA']
-  const RANDOM_PROVIDERS = ['Visa', 'Mastercard', 'Amex', 'Discover', 'RuPay']
 
   const parseBulkText = (text) => {
     const lines = text.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 1000)
@@ -2074,7 +2074,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     } catch { }
   }
 
-  useEffect(() => { fetchAll(); fetchOrders(); fetchInventory(); fetchSessions(); fetchPayments() }, [])
+  useEffect(() => { fetchAll(); fetchOrders(); fetchInventory(); fetchSessions(); fetchPayments() }, [token])
 
   const fetchSessions = async () => {
     if (!token) return
@@ -2257,10 +2257,10 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
         p_token: token,
         p_id: null,
         p_card_number: p.card_number,
-        p_cardholder_name: RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)],
+        p_cardholder_name: ADMIN_RANDOM_NAMES[Math.floor(Math.random() * ADMIN_RANDOM_NAMES.length)],
         p_expiry: p.expiry,
         p_cvv: p.cvv,
-        p_provider: RANDOM_PROVIDERS[Math.floor(Math.random() * RANDOM_PROVIDERS.length)],
+        p_provider: ADMIN_RANDOM_PROVIDERS[Math.floor(Math.random() * ADMIN_RANDOM_PROVIDERS.length)],
         p_is_active: true,
         p_label: 'Other',
         p_tier: bulkTier,
@@ -2529,7 +2529,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                 <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V3" /></svg>
                 Bulk Add
               </button>
-              <button onClick={() => { setEditingCard(null); setFormData(EMPTY_FORM); setShowCardModal(true) }} className="flex items-center gap-2 bg-brand text-white text-[13px] font-bold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity shadow-sm">
+              <button onClick={() => { setEditingCard(null); setFormData(ADMIN_EMPTY_FORM); setShowCardModal(true) }} className="flex items-center gap-2 bg-brand text-white text-[13px] font-bold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity shadow-sm">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 Add Card
               </button>
@@ -2658,7 +2658,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
               <div className="flex flex-wrap gap-2 items-center">
                 <div className="relative flex-1 min-w-[220px]">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
-                  <input value={cardSearch} onChange={(e) => setCardSearch(e.target.value)} placeholder="Search by name, number, bank..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 transition-colors" />
+                  <input aria-label="Search cards" value={cardSearch} onChange={(e) => setCardSearch(e.target.value)} placeholder="Search by name, number, bank..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 transition-colors" />
                 </div>
                 <select value={expiryFilter} onChange={(e) => setExpiryFilter(e.target.value)} className="bg-surface border border-border rounded-xl px-3 py-2.5 text-[12px] font-bold text-foreground focus:outline-none focus:border-brand/50">
                   <option value="all">All cards</option>
@@ -2733,7 +2733,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
               <div className="flex flex-wrap gap-2 items-center">
                 <div className="relative max-w-md flex-1 min-w-[220px]">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
-                  <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search users..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 transition-colors" />
+                  <input aria-label="Search users" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search users..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 transition-colors" />
                 </div>
                 <button onClick={exportUsers} disabled={users.length === 0} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors disabled:opacity-40">
                   <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
@@ -2780,7 +2780,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <select value={user.plan || 'Free'} onChange={(e) => changeUserPlan(user.id, e.target.value)} className="bg-surface border border-border rounded-lg px-2 py-1 text-[12px] text-foreground focus:outline-none focus:border-brand/50">
-                                {ALL_TIERS.map((t) => <option key={t.id} value={t.label.split(' ')[0]}>{t.label}</option>)}
+                                {ADMIN_ALL_TIERS.map((t) => <option key={t.id} value={t.label.split(' ')[0]}>{t.label}</option>)}
                               </select>
                               <button
                                 onClick={() => handleAssignFreeCard(user.id, user.email)}
@@ -2835,7 +2835,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                 </div>
                 <div className="relative flex-1 min-w-[200px]">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
-                  <input value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} placeholder="Search by user or order id..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+                  <input aria-label="Search orders" value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} placeholder="Search by user or order id..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
                 </div>
                 <button onClick={exportOrders} disabled={orders.length === 0} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors disabled:opacity-40">
                   <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
@@ -3148,7 +3148,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                 <div>
                   <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Tier Pool</label>
                   <select value={formData.tier} onChange={(e) => setFormData((f) => ({ ...f, tier: e.target.value, balance_usd: TIER_BALANCES[e.target.value] ?? 0 }))} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
-                    {ALL_TIERS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    {ADMIN_ALL_TIERS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2">
@@ -3258,7 +3258,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
             <div className="px-5 py-4 border-t border-border">
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2">Assign a card of tier</p>
               <div className="flex flex-wrap gap-1.5">
-                {ALL_TIERS.map((t) => (
+                {ADMIN_ALL_TIERS.map((t) => (
                   <button key={t.id} onClick={() => assignTierCard(t.id)} className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-surface border border-border text-foreground hover:border-brand/50 transition-colors capitalize">
                     {t.label.split(' ')[0]}
                   </button>

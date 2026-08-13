@@ -41,6 +41,12 @@ The current app version is displayed in Settings (Account page) and defined as `
 
 | **v9** | S14 (current) | **No free cards + live plan sync + QR confirm** — free card claiming removed entirely (`claim_free_card` / `create_order` revoked from users): cards now ONLY come from a paid Top-Up Pack (admin activates the plan + assigns the card). Admin plan changes reach the user **LIVE** via realtime on `profiles` (no refresh needed). UPI QR flow now opens the modal **first** with Confirm/Cancel — the request is created only on Confirm. Real owner QR image applied (`public/upi-qr.jpg`). Login page dock + back button removed. |
 
+### v9.0.1 — React Doctor cleanup pass (S14)
+- **Real bugs fixed:** Turnstile `fetch` now checks HTTP status BEFORE consuming the response body; dead favicon reference removed (`/vite.svg` didn't exist → 404 on every load — replaced with an inline SVG card icon); AdminPanel initial-load effect now depends on `token`; FAQ accordion uses real keys (`item.q`) instead of array indexes; `aria-label`s added to the 4 search inputs + admin OTP digits.
+- **Perf/cleanup:** static values moved out of components to module scope (auth input classes, admin empty form, all-tiers list, random-name/provider pools) so they aren't rebuilt every render; unused `PLAN_TIERS` dead constant removed; `plan` signup state is now a plain const (was only used in handlers).
+- **Reviewed & kept (false positives / intentional):** all `createObjectURL` calls already `revokeObjectURL` (deferred 100ms); all realtime subscriptions already cleaned up (`cancelled` flag + `removeChannel`); anon key in bundle is normal Supabase architecture (RLS + code-gated RPCs are the protection); `transition-all` classes are a deliberate UI style; sequential admin bulk loops intentionally stay sequential to avoid rate-limit bursts.
+- **Release:** commit + tag `v9.0.1`.
+
 ### v9.0.0 — No free cards + live plan sync + QR confirm (S14)
 - **Migration 0020** (applied + verified live): `revoke execute on claim_free_card()/create_order(text) from public, anon, authenticated` (only service_role can call them now — verified grants); `profiles` added to the `supabase_realtime` publication.
 - **Cards gating:** signup/login no longer grants any card — free claim UI, guest free-card CTA and the admin free-claims toggle/badge removed. Cards page empty state now points to the Plans page; only an admin-assigned card after a paid pack shows up.
