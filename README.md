@@ -35,6 +35,8 @@ VITE_TURNSTILE_SITE_KEY=...
 TURNSTILE_SECRET=...   # runtime-only, lives in the edge function env (never in the bundle)
 ```
 
+**Cloudflare gotcha:** keep `VITE_*` vars as **plain_text** (not secret_text) in the Pages project — functions read them at runtime. `TURNSTILE_SECRET` is secret_text and must be re-put with `wrangler pages secret put` after the git source is connected, then a fresh git deployment picks it up. Ad-hoc API-triggered deployments may not bind secrets — always deploy via git push.
+
 ## Project Structure
 
 ```
