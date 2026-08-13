@@ -15,7 +15,7 @@ const V2_PACKS = [
 ]
 
 // ─── Version (v1 → v2 → … → v10 → v11) ───────────────────────────────────────
-const APP_VERSION = '11.0.0'
+const APP_VERSION = '11.1.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
@@ -2081,6 +2081,17 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
 
   useEffect(() => { fetchAll(); fetchOrders(); fetchInventory(); fetchSessions(); fetchPayments() }, [token])
 
+  // Session heartbeat — keep the admin session alive while the panel is open.
+  // admin_ping extends the session by 7 days, so the panel NEVER force-logs-out
+  // mid-work; it only expires if the admin closes the tab (or logs out).
+  useEffect(() => {
+    if (!token) return
+    const beat = () => { supabase.rpc('admin_ping', { p_token: token }).catch(() => {}) }
+    beat()
+    const id = setInterval(beat, 4 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [token])
+
   const fetchSessions = async () => {
     if (!token) return
     try {
@@ -3374,7 +3385,7 @@ function AdminAIAssistant({ token }) {
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setCfgMsg({ ok: false, text: `Connection failed: ${body.error || res.status} — ${body.hint || ''}` })
+        setCfgMsg({ ok: false, text: `Connection failed: ${body.detail || body.error || res.status} — ${body.hint || ''}` })
         return
       }
       setCfgMsg({ ok: true, text: 'Connected! AI is ready 🎉' })
@@ -3406,7 +3417,7 @@ function AdminAIAssistant({ token }) {
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setChatError(body.hint || body.error || `Request failed (${res.status})`)
+        setChatError(body.detail || body.hint || body.error || `Request failed (${res.status})`)
         // Still refresh history so the saved user message shows up
         loadAll()
         return
@@ -3440,9 +3451,10 @@ function AdminAIAssistant({ token }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Provider</label>
-            <select value={provider} onChange={(e) => { setProvider(e.target.value); if (e.target.value === 'google') setBaseUrl('https://generativelanguage.googleapis.com/v1beta/openai'); if (e.target.value === 'openai') setBaseUrl('https://api.openai.com/v1') }} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
+            <select value={provider} onChange={(e) => { setProvider(e.target.value); if (e.target.value === 'google') setBaseUrl('https://generativelanguage.googleapis.com'); if (e.target.value === 'groq') setBaseUrl('https://api.groq.com/openai/v1'); if (e.target.value === 'openai') setBaseUrl('https://api.openai.com/v1') }} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
               <option value="openai">OpenAI (gpt-4o-mini etc.)</option>
-              <option value="google">Google Gemini (OpenAI-compatible)</option>
+              <option value="groq">Groq (llama-3.3-70b — fast &amp; free)</option>
+              <option value="google">Google Gemini (native)</option>
               <option value="custom">Custom (any OpenAI-compatible)</option>
             </select>
           </div>
@@ -3452,7 +3464,7 @@ function AdminAIAssistant({ token }) {
           </div>
           <div>
             <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Model</label>
-            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-4o-mini / gemini-2.0-flash" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-4o-mini / llama-3.3-70b-versatile / gemini-2.0-flash" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
           </div>
           <div>
             <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">API Key {apiKey.includes('...') && <span className="text-emerald-600 normal-case">(saved — leave as-is to keep)</span>}</label>
