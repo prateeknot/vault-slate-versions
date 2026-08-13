@@ -41,6 +41,14 @@ The current app version is displayed in Settings (Account page) and defined as `
 
 | **v9** | S14 (current) | **No free cards + live plan sync + QR confirm** — free card claiming removed entirely (`claim_free_card` / `create_order` revoked from users): cards now ONLY come from a paid Top-Up Pack (admin activates the plan + assigns the card). Admin plan changes reach the user **LIVE** via realtime on `profiles` (no refresh needed). UPI QR flow now opens the modal **first** with Confirm/Cancel — the request is created only on Confirm. Real owner QR image applied (`public/upi-qr.jpg`). Login page dock + back button removed. |
 
+### v9.0.2 — Cloudflare Pages migration (S14)
+- **New host:** moved from Vercel to **Cloudflare Pages** (user's request — asked for the diff between Vercel and Cloudflare and wanted the CLI installed + the work done).
+- **Edge function:** `api/verify-turnstile.js` (Vercel format) converted to **Cloudflare Pages Function** at `functions/api/verify-turnstile.js` (`onRequest` + `Request`/`Response`; env via `context.env.TURNSTILE_SECRET`; client IP via `cf-connecting-ip` with trusted x-forwarded-for fallback). **Verified locally end-to-end** (Node harness hitting the real siteverify API with the real secret): GET→405, empty body→400, bad JSON→400, fake token→403 `invalid-input-response`.
+- **Config:** `wrangler.toml` (project `virtual-cards`, `pages_build_output_dir = dist`, compat date) · `_redirects` SPA fallback (`/* /index.html 200` — functions take precedence for `/api/*`) · `_headers` security headers (nosniff, DENY frame, strict-origin referrer, empty permissions).
+- **Tooling:** wrangler 4.122.0 added as devDependency (project-scoped). Legacy Vercel `api/` function KEPT for rollback — both endpoints coexist.
+- **Verified:** bundle inlines Supabase URL, `TURNSTILE_SECRET` NOT in bundle; build passes.
+- **User action needed:** connect the GitHub repo in the Cloudflare dashboard (build `npm run build`, output `dist`, env vars `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`/`VITE_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET`) OR give me a Cloudflare API token and I'll deploy via CLI. Then point `paid.cc.cd` (CNAME to `<project>.pages.dev`) at Cloudflare.
+
 ### v9.0.1 — React Doctor cleanup pass (S14)
 - **Real bugs fixed:** Turnstile `fetch` now checks HTTP status BEFORE consuming the response body; dead favicon reference removed (`/vite.svg` didn't exist → 404 on every load — replaced with an inline SVG card icon); AdminPanel initial-load effect now depends on `token`; FAQ accordion uses real keys (`item.q`) instead of array indexes; `aria-label`s added to the 4 search inputs + admin OTP digits.
 - **Perf/cleanup:** static values moved out of components to module scope (auth input classes, admin empty form, all-tiers list, random-name/provider pools) so they aren't rebuilt every render; unused `PLAN_TIERS` dead constant removed; `plan` signup state is now a plain const (was only used in handlers).

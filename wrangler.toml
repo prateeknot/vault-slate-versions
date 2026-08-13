@@ -1,0 +1,13 @@
+# Cloudflare Pages config (v9.0.2 — moved from Vercel)
+# Docs: https://developers.cloudflare.com/pages/
+name = "virtual-cards"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+# NOTE: TURNSTILE_SECRET is a SECRET — never put it here.
+# Set it in the Cloudflare dashboard (Settings → Environment variables → Production:
+#   TURNSTILE_SECRET=<value>)
+# or via CLI:  echo $TURNSTILE_SECRET | npx wrangler pages secret put TURNSTILE_SECRET --project-name=virtual-cards
+#
+# The VITE_* build-time vars (Supabase URL/anon key, Turnstile site key) are baked
+# into the bundle at build time via .env — they do NOT need to be set on Cloudflare.

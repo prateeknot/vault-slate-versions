@@ -1,0 +1,3 @@
+# Cloudflare Pages — SPA fallback (client-side routing)
+# /api/* is handled by Pages Functions (functions/) BEFORE this rule.
+/* /index.html 200

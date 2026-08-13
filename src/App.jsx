@@ -15,7 +15,7 @@ const V2_PACKS = [
 ]
 
 // ─── Version (v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9) ─────────────────────────
-const APP_VERSION = '9.0.1'
+const APP_VERSION = '9.0.2'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`

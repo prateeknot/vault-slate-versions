@@ -30,6 +30,8 @@ npm run dev
 ```bash
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
+VITE_TURNSTILE_SITE_KEY=...
+TURNSTILE_SECRET=...   # runtime-only, lives in the edge function env (never in the bundle)
 ```
 
 ## Project Structure
@@ -40,10 +42,34 @@ src/
 ├── App.jsx               # All pages + components (single-file)
 ├── index.css             # Theme system + iOS glass surface system
 └── lib/supabase.js       # Supabase client
+functions/api/           # Cloudflare Pages Functions (edge) — Turnstile verify
+api/                     # Legacy Vercel serverless function (same endpoint, kept for rollback)
 supabase/migrations/      # SQL migrations (schema, RLS, RPCs)
+wrangler.toml            # Cloudflare Pages config
+_redirects / _headers    # Cloudflare Pages SPA fallback + security headers
 ```
+
+## Deploy on Cloudflare Pages (v9.0.2 — current)
+
+**Option A — Git integration (easiest, auto-deploys on push like Vercel):**
+1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pick `prateeknot/vault-slate-versions`
+2. Build command: `npm run build` · Build output directory: `dist`
+3. **Environment variables** (Production + Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_TURNSTILE_SITE_KEY` (build-time, inlined) and `TURNSTILE_SECRET` (runtime, for the function)
+4. Deploy → every push to `main` auto-deploys. Custom domain: Pages → Custom domains → add `paid.cc.cd` (CNAME to `<project>.pages.dev` — automatic if the domain is on Cloudflare DNS)
+
+**Option B — CLI (wrangler, already installed as devDependency):**
+```bash
+npx wrangler login                                      # browser auth once
+npx wrangler pages project create virtual-cards --production-branch=main
+npm run build                                           # VITE_* vars inlined from .env
+npx wrangler pages deploy dist --project-name=virtual-cards
+printf '%s' "$TURNSTILE_SECRET" | npx wrangler pages secret put TURNSTILE_SECRET --project-name=virtual-cards
+```
+
+Local test: `npx wrangler pages dev dist` (reads `.env`, runs the edge function at `/api/verify-turnstile`).
 
 ## Git / Deploy
 
 - Main branch: `main`, remote: `https://github.com/prateeknot/vault-slate-versions`
-- Deploy: push to `main` → Vercel auto-deploys
+- Cloudflare Pages: auto-deploys from `main` (v9.0.2)
+- Vercel (legacy): the old `api/` function is kept so the site keeps working there until the domain is fully moved — remove it once Cloudflare is live
