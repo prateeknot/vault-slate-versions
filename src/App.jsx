@@ -14,11 +14,17 @@ const V2_PACKS = [
   { id: 'infinity', name: 'Infinity', price_inr: 1599, balance_usd: 82, badge: 'Max Balance' },
 ]
 
-// ─── Version (v1 → v2 → v3 → v4 → v5 → v6 → v7) ────────────────────────────────
-const APP_VERSION = '7.0.0'
+// ─── Version (v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8) ────────────────────────────
+const APP_VERSION = '8.0.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
+
+// ─── UPI QR payment (v8) ────────────────────────────────────────────────────────
+// Drop the owner's UPI QR image into /public (e.g. upi-qr.png) and set the path
+// below. Empty string renders a placeholder box until the real QR is provided.
+const UPI_QR_IMAGE = ''
+const UPGRADE_COOLDOWN_HOURS = 24
 
 const TIER_BALANCES = {
   free: 0,
@@ -919,6 +925,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
   const [layout, setLayout] = useState('list')
   const [favOnly, setFavOnly] = useState(false)
   const [pendingRequests, setPendingRequests] = useState([])
+  const [myUpgradeReqs, setMyUpgradeReqs] = useState([])
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
@@ -973,16 +980,18 @@ function CardsPage({ currentUser, onNavigate, settings }) {
         setPlanLimit(3)
         return
       }
-      const [overviewRes, cardsRes, pendingRes] = await Promise.all([
+      const [overviewRes, cardsRes, pendingRes, upgradeRes] = await Promise.all([
         supabase.rpc('my_overview'),
         supabase.rpc('cards_for_me'),
         supabase.rpc('my_pending_requests'),
+        supabase.rpc('my_upgrade_requests'),
       ])
       const overview = overviewRes.data || {}
       const rows = normalizeCards(cardsRes.data)
       setOverview(overview)
       setClaimed(rows)
       setPendingRequests(pendingRes.data || [])
+      setMyUpgradeReqs(upgradeRes.data || [])
     } catch (err) {
       console.error('Fetch error:', err)
       showToast('Could not load cards', 'error')
@@ -1164,6 +1173,21 @@ function CardsPage({ currentUser, onNavigate, settings }) {
       </header>
 
       <main className="flex-1 max-w-md mx-auto w-full px-4 pt-4 pb-28">
+        {(() => {
+          const rej = myUpgradeReqs.find((r) => r.status === 'rejected')
+          if (isGuest || !rej?.reviewed_at) return null
+          const retryAt = new Date(rej.reviewed_at).getTime() + UPGRADE_COOLDOWN_HOURS * 3600 * 1000
+          if (retryAt <= Date.now()) return null
+          return (
+            <div className="mb-4 rounded-2xl bg-red-50 border border-red-200 p-3.5 flex items-start gap-3">
+              <span className="text-red-500 text-[16px]">🚫</span>
+              <div>
+                <p className="text-[12px] font-bold text-red-700">Payment request declined</p>
+                <p className="text-[11px] text-red-600 mt-0.5 leading-relaxed">Your last upgrade request was declined. You can submit a new one after 24 hours.</p>
+              </div>
+            </div>
+          )
+        })()}
         <div className="relative mb-4">
           {!isGuest && (
             <>
@@ -1331,11 +1355,11 @@ function FAQPage({ onNavigate }) {
   const [open, setOpen] = useState(null)
   const items = [
     { q: 'How do I get my first card?', a: 'Sign up for free and claim your free virtual card on the Cards page. It comes with a random USD balance ($1–$15). One free card per account.' },
-    { q: 'How do Top-Up Packs work?', a: 'Packs (Spark ₹299 up to Infinity ₹1599) add a higher-balance card to your account. Tap any pack on the Plans page to pay via Telegram — after payment, your card is assigned to your account automatically.' },
+    { q: 'How do Top-Up Packs work?', a: 'Packs (Spark ₹299 up to Infinity ₹1599) add a higher-balance card to your account. Tap any pack on the Plans page and pay via UPI QR — scan, pay, and write your email in the payment note. Once the admin verifies the payment, your plan activates automatically and your new card unlocks.' },
     { q: 'What is a virtual card used for?', a: 'These are virtual card details (number, expiry, CVV) designed for free trial sign-ups and verification. They work like a prepaid-style card for online use.' },
     { q: 'What happens when a card expires?', a: 'Expired cards can no longer be used for new sign-ups. Copy important details before the expiry date — you will see an amber alert on the Cards page for cards expiring within 60 days.' },
     { q: 'Can I rename or favourite a card?', a: 'Yes — open any card and use the Nickname field or the star (Favorite) button. Favorites can be filtered with the ★ chip on the Cards page.' },
-    { q: 'My card did not arrive after payment. What now?', a: 'Contact us via Telegram (@' + TELEGRAM_BOT_USERNAME + ') with your order details. Assignments are instant, so if it has been more than a few minutes something is wrong — our team will fix it.' },
+    { q: 'My card did not arrive after payment. What now?', a: 'Check the Plans page — if your request still says "Payment Under Review", the admin is verifying it. Activation happens right after payment verification, so if it has been more than a few minutes contact us via Telegram (@' + TELEGRAM_BOT_USERNAME + ') with your order details and our team will fix it.' },
     { q: 'Is my card data secure?', a: 'All card data is stored in a protected database and only your own cards are shown to you. Admin access requires a separate 6-digit code.' },
   ]
   return (
@@ -1380,6 +1404,16 @@ function FAQPage({ onNavigate }) {
 // ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────��───────
 function PricingPage({ currentUser, onNavigate, settings }) {
   const [stock, setStock] = useState({})
+  const [buying, setBuying] = useState('')
+  const [payModal, setPayModal] = useState(null)
+  const [myRequests, setMyRequests] = useState([])
+  const [notice, setNotice] = useState(null)
+
+  const refreshRequests = useCallback(async () => {
+    if (!currentUser) return
+    const { data } = await supabase.rpc('my_upgrade_requests')
+    if (data) setMyRequests(data)
+  }, [currentUser])
 
   useEffect(() => {
     supabase.rpc('tier_stock').then(({ data }) => {
@@ -1388,6 +1422,61 @@ function PricingPage({ currentUser, onNavigate, settings }) {
       setStock(m)
     }).catch(() => { })
   }, [])
+
+  useEffect(() => { refreshRequests() }, [refreshRequests])
+
+  // Realtime: admin activate/decline reaches this page within seconds
+  useEffect(() => {
+    if (!currentUser) return
+    const ch = supabase.channel('pricing-upgrades')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'upgrade_requests' }, () => refreshRequests())
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [currentUser, refreshRequests])
+
+  const pendingReq = myRequests.find((r) => r.status === 'pending')
+  const lastRejected = myRequests.find((r) => r.status === 'rejected')
+  const cooldownUntil = lastRejected?.reviewed_at
+    ? new Date(lastRejected.reviewed_at).getTime() + UPGRADE_COOLDOWN_HOURS * 3600 * 1000
+    : 0
+  const cooldownActive = cooldownUntil > Date.now()
+
+  const startUpgrade = async (pack) => {
+    if (!currentUser) {
+      setNotice({ type: 'error', msg: 'Please log in first to upgrade your plan.' })
+      return
+    }
+    setBuying(pack.id)
+    setNotice(null)
+    const { data, error } = await supabase.rpc('create_upgrade_request', { p_pack_id: pack.id })
+    setBuying('')
+    if (error) { setNotice({ type: 'error', msg: error.message }); return }
+    if (!data?.ok) {
+      if (data?.error === 'PENDING_EXISTS') {
+        setNotice({ type: 'info', msg: 'You already have a payment under review — it will be activated once the admin verifies it.' })
+      } else if (data?.error === 'COOLDOWN_ACTIVE') {
+        setNotice({ type: 'error', msg: 'Your previous request was declined. You can submit a new upgrade request after 24 hours.' })
+      } else {
+        setNotice({ type: 'error', msg: data?.error || 'Request failed. Please try again.' })
+      }
+      return
+    }
+    await refreshRequests()
+    setPayModal({ pack, req: data.request })
+  }
+
+  const recheckPayment = async () => {
+    const { data } = await supabase.rpc('my_upgrade_requests')
+    if (data) setMyRequests(data)
+    const req = (data || []).find((r) => r.id === payModal.req.id)
+    if (req?.status === 'approved') {
+      setPayModal(null)
+      setNotice({ type: 'success', msg: 'Payment verified — your plan is now active! 🎉' })
+    } else if (req?.status === 'rejected') {
+      setPayModal(null)
+      setNotice({ type: 'error', msg: 'Your payment request was declined. You can try again after 24 hours.' })
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -1408,6 +1497,22 @@ function PricingPage({ currentUser, onNavigate, settings }) {
           Choose a pack to assign a virtual card loaded with your chosen USD Balance ($)!
         </p>
 
+        {pendingReq && (
+          <div className="mb-4 rounded-2xl bg-amber-50 border border-amber-200 p-3.5 flex items-start gap-3">
+            <span className="text-amber-600 text-[16px]">🔒</span>
+            <div>
+              <p className="text-[12px] font-bold text-amber-800">Payment Under Review</p>
+              <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">Your {pendingReq.pack_name} request (₹{Number(pendingReq.amount_inr).toFixed(2)}) is being verified. Your Cards page is locked until the admin activates it.</p>
+            </div>
+          </div>
+        )}
+
+        {notice && (
+          <div className={`mb-4 rounded-xl px-3.5 py-2.5 text-[12px] font-semibold leading-relaxed ${notice.type === 'error' ? 'bg-red-50 text-red-600 border border-red-200' : notice.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-sky-50 text-sky-700 border border-sky-200'}`}>
+            {notice.msg}
+          </div>
+        )}
+
         <div className="space-y-3.5">
           {V2_PACKS.map((p) => (
             <div key={p.id} className="bg-white border border-border rounded-2xl p-4 flex items-center justify-between shadow-soft hover:border-brand/40 transition-all">
@@ -1420,14 +1525,20 @@ function PricingPage({ currentUser, onNavigate, settings }) {
               </div>
 
               <div className="text-right space-y-1.5">
-                <p className="text-[18px] font-black text-foreground">₹{p.price_inr}</p>                {stock[p.id] === 0 ? (
+                <p className="text-[18px] font-black text-foreground">₹{p.price_inr}</p>
+                {stock[p.id] === 0 ? (
                   <span className="block w-full text-center px-3.5 py-1.5 rounded-xl bg-red-50 text-red-600 font-bold text-[12px] border border-red-200">Sold out</span>
+                ) : pendingReq ? (
+                  <span className="block w-full text-center px-3.5 py-1.5 rounded-xl bg-amber-50 text-amber-600 font-bold text-[12px] border border-amber-200">⏳ Under Review</span>
+                ) : cooldownActive ? (
+                  <span className="block w-full text-center px-3.5 py-1.5 rounded-xl bg-surface text-muted-foreground font-bold text-[12px] border border-border" title="You can submit a new request after 24 hours">Wait 24h</span>
                 ) : (
                   <button
-                    onClick={() => window.open(`${TELEGRAM_BOT_URL}?start=buy_${p.id}`, '_blank')}
-                    className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1"
+                    onClick={() => startUpgrade(p)}
+                    disabled={buying === p.id}
+                    className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-[12px] hover:opacity-90 transition-opacity shadow-sm w-full flex items-center justify-center gap-1 disabled:opacity-50"
                   >
-                    Buy via Telegram
+                    {buying === p.id ? 'Please wait…' : 'Pay via UPI QR'}
                   </button>
                 )}
               </div>
@@ -1467,15 +1578,61 @@ function PricingPage({ currentUser, onNavigate, settings }) {
               </tbody>
             </table>
           </div>
-          <p className="text-center text-[10px] text-muted-foreground mt-2">Lower ₹/$ = better value. All packs include instant Telegram delivery.</p>
+          <p className="text-center text-[10px] text-muted-foreground mt-2">Lower ₹/$ = better value. Activation is instant once payment is verified.</p>
         </section>
       </main>
 
+      {payModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={() => setPayModal(null)}>
+          <div className="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-black text-[17px] text-foreground">Pay via UPI QR</h3>
+                <p className="text-[12px] text-muted-foreground mt-0.5">{payModal.pack.name} pack · <span className="font-bold text-foreground">₹{payModal.pack.price_inr}</span></p>
+              </div>
+              <button onClick={() => setPayModal(null)} className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-muted-foreground" aria-label="Close">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-2xl border-2 border-dashed border-brand/40 bg-brand-dim/40 flex flex-col items-center justify-center py-7">
+              {UPI_QR_IMAGE ? (
+                <img src={UPI_QR_IMAGE} alt="UPI QR code" className="w-44 h-44 object-contain rounded-xl" />
+              ) : (
+                <>
+                  <div className="w-20 h-20 rounded-2xl bg-white border border-border flex items-center justify-center mb-3">
+                    <svg className="w-10 h-10 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5zM13.5 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z" /></svg>
+                  </div>
+                  <p className="text-[12px] font-bold text-brand">UPI QR</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">QR code image added soon</p>
+                </>
+              )}
+            </div>
+
+            <ol className="mt-4 space-y-2 text-[12px] text-muted-foreground leading-relaxed">
+              <li className="flex gap-2"><span className="w-5 h-5 shrink-0 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">1</span>Scan the QR with PhonePe, GPay, Paytm or any UPI app and pay exactly <span className="font-bold text-foreground">₹{payModal.pack.price_inr}</span>.</li>
+              <li className="flex gap-2"><span className="w-5 h-5 shrink-0 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">2</span>In the <span className="font-bold text-foreground">payment note / message</span>, write your email: <span className="font-mono font-bold text-brand bg-brand-dim px-1.5 py-0.5 rounded-md break-all">{currentUser?.email}</span></li>
+              <li className="flex gap-2"><span className="w-5 h-5 shrink-0 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">3</span>Your request is now <span className="font-bold text-amber-600">Under Review</span>. The admin verifies the payment and your plan activates automatically — cards unlock instantly.</li>
+            </ol>
+
+            <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 flex items-center gap-2">
+              <span className="text-amber-600">⏳</span>
+              <p className="text-[11px] font-semibold text-amber-800">Payment Under Review — cards unlock once verified</p>
+            </div>
+
+            <button onClick={recheckPayment} className="mt-3 w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-[13px] hover:opacity-90 transition-opacity">
+              Re-check Status
+            </button>
+            <p className="text-center text-[10px] text-muted-foreground mt-2">Your request is matched by the email written in the UPI note.</p>
+          </div>
+        </div>
+      )}
 
       <BottomNav view="pricing" isLoggedIn={!!currentUser} onNavigate={onNavigate} />
     </div>
   )
 }
+
 
 const APP_THEMES = [
   { id: 'blue', label: 'Mist', description: 'Soft blue-grey', swatches: ['#EEF3F8', '#5F7894', '#DCE5ED'] },
@@ -1777,6 +1934,9 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const [packEditing, setPackEditing] = useState(null)
   const [editingPackForm, setEditingPackForm] = useState({})
   const [ordersLoading, setOrdersLoading] = useState(false)
+  const [payments, setPayments] = useState([])
+  const [paymentsLoading, setPaymentsLoading] = useState(false)
+  const [payFilter, setPayFilter] = useState('all')
 
   const showToast = useCallback((msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500) }, [])
 
@@ -1865,6 +2025,36 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     }
   }
 
+  const fetchPayments = async () => {
+    if (!token) return
+    setPaymentsLoading(true)
+    try {
+      const { data, error } = await supabase.rpc('admin_payments_list', { p_token: token })
+      if (error) {
+        if (String(error.message).includes('SESSION_INVALID')) setSessionExpired(true)
+        return
+      }
+      setPayments(data || [])
+    } catch { } finally { setPaymentsLoading(false) }
+  }
+
+  const approvePayment = async (p) => {
+    const { data, error } = await supabase.rpc('admin_payment_approve', { p_token: token, p_request_id: p.id })
+    if (error) { showToast(error.message, 'error'); return }
+    if (!data?.ok) { showToast(data?.error || 'Approve failed', 'error'); return }
+    showToast(`Plan activated for ${p.display_name || p.email} 🎉`)
+    fetchPayments()
+    fetchAll()
+  }
+
+  const declinePayment = async (p) => {
+    const { data, error } = await supabase.rpc('admin_payment_decline', { p_token: token, p_request_id: p.id, p_note: 'declined by admin' })
+    if (error) { showToast(error.message, 'error'); return }
+    if (!data?.ok) { showToast(data?.error || 'Decline failed', 'error'); return }
+    showToast(`Request declined — user can retry after 24h`)
+    fetchPayments()
+  }
+
   const fetchOrders = async () => {
     if (!token) return
     setOrdersLoading(true)
@@ -1886,7 +2076,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     } catch { }
   }
 
-  useEffect(() => { fetchAll(); fetchOrders(); fetchInventory(); fetchSessions() }, [])
+  useEffect(() => { fetchAll(); fetchOrders(); fetchInventory(); fetchSessions(); fetchPayments() }, [])
 
   const fetchSessions = async () => {
     if (!token) return
@@ -2273,6 +2463,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     { id: 'cards', label: 'Manage Cards', icon: 'M2.273 5.625A4.483 4.483 0 015.25 4.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 3H5.25a3 3 0 00-2.977 2.625zM2.273 8.625A4.483 4.483 0 015.25 7.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 6H5.25a3 3 0 00-2.977 2.625zM5.25 9a3 3 0 00-3 3v6a3 3 0 003 3h13.5a3 3 0 003-3v-6a3 3 0 00-3-3H5.25zm6.75 8.25a2.25 2.25 0 110-4.5 2.25 2.25 0 010 4.5z' },
     { id: 'users', label: 'Manage Users', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
     { id: 'orders', label: 'Orders', icon: 'M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z' },
+    { id: 'payments', label: 'Payments', icon: 'M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z' },
     { id: 'packs', label: 'Packs', icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z' },
     { id: 'settings', label: 'Settings', icon: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   ]
@@ -2358,7 +2549,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
           {sidebarItems.map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`shrink-0 px-4 py-3 text-[11px] font-bold uppercase tracking-wide transition-colors ${activeTab === tab.id ? 'text-brand border-b-2 border-brand' : 'text-muted-foreground'}`}>
-              {tab.id === 'cards' ? 'Cards' : tab.id === 'users' ? 'Users' : tab.id}
+              {tab.id === 'cards' ? 'Cards' : tab.id === 'users' ? 'Users' : tab.id === 'payments' ? 'Payments' : tab.id}
             </button>
           ))}
         </div>
@@ -2687,6 +2878,70 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                                 {o.status !== 'paid' && <button onClick={() => setOrderStatus(o.id, 'paid')} className="text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg">Mark Paid</button>}
                                 {o.status !== 'failed' && <button onClick={() => setOrderStatus(o.id, 'failed')} className="text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg">Fail</button>}
                                 {o.status !== 'refunded' && <button onClick={() => setOrderStatus(o.id, 'refunded')} className="text-[11px] font-bold text-amber-600 hover:bg-amber-50 px-2 py-1 rounded-lg">Refund</button>}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'payments' && !dataLoading && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1">
+                  {['all', 'pending', 'approved', 'rejected'].map((s) => (
+                    <button key={s} onClick={() => setPayFilter(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-bold capitalize transition-colors ${payFilter === s ? 'bg-brand text-white' : 'text-muted-foreground hover:text-foreground'}`}>{s}</button>
+                  ))}
+                </div>
+                <button onClick={fetchPayments} disabled={paymentsLoading} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors disabled:opacity-40">
+                  <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                  Refresh
+                </button>
+              </div>
+
+              <div className="bg-white border border-border rounded-2xl overflow-hidden">
+                {paymentsLoading ? (
+                  <div className="p-10 text-center"><p className="text-[13px] text-muted-foreground font-medium">Loading payments…</p></div>
+                ) : payments.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <p className="text-[13px] text-muted-foreground font-medium">No upgrade requests yet.</p>
+                    <p className="text-[11px] text-muted-foreground/60 mt-1">When a user taps a pack and pays via UPI QR, their request shows up here. Verify the payment in PhonePe (amount + email in the UPI note), then activate or decline.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border bg-surface">{['User', 'Plan Requested', 'Amount', 'Status', 'Created', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {payments.filter((p) => payFilter === 'all' || p.status === payFilter).map((p) => (
+                          <tr key={p.id} className="hover:bg-surface/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <p className="text-[13px] font-semibold text-foreground truncate max-w-[220px]">{p.display_name || '—'}</p>
+                              <p className="text-[11px] text-muted-foreground truncate max-w-[220px]">{p.email}</p>
+                              <p className="text-[10px] text-muted-foreground/70">Current: {p.current_plan || 'free'}{p.is_active === false ? ' · suspended' : ''}</p>
+                            </td>
+                            <td className="px-4 py-3 text-[12px] text-foreground font-semibold whitespace-nowrap capitalize">{p.pack_name}</td>
+                            <td className="px-4 py-3 text-[13px] text-foreground font-bold whitespace-nowrap">₹{Number(p.amount_inr).toFixed(2)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${p.status === 'approved' ? 'bg-green-100 text-green-700' : p.status === 'pending' ? 'bg-amber-100 text-amber-600' : p.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-surface-2 text-muted-foreground border border-border'}`}>{p.status}</span>
+                            </td>
+                            <td className="px-4 py-3 text-[11px] text-muted-foreground whitespace-nowrap">{p.created_at ? new Date(p.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                {p.status === 'pending' ? (
+                                  <>
+                                    <button onClick={() => approvePayment(p)} className="text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg">Activate</button>
+                                    <button onClick={() => declinePayment(p)} className="text-[11px] font-bold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg">Decline</button>
+                                  </>
+                                ) : (
+                                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">{p.reviewed_at ? new Date(p.reviewed_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>
+                                )}
                               </div>
                             </td>
                           </tr>

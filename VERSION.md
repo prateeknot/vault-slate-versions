@@ -2,7 +2,7 @@
 
 Versioning system: **v1 → v2 → v3 → v4 → v5 → ...**
 Each major version = a batch of user-facing / admin features shipped together.
-Git tags: `v1.0.0`, `v2.0.0`, ... (current tag = `v5.0.0`).
+Git tags: `v1.0.0`, `v2.0.0`, ... (current tag = `v8.0.0`).
 The current app version is displayed in Settings (Account page) and defined as `APP_VERSION` in `src/App.jsx`.
 
 | Version | Release | What's new |
@@ -30,7 +30,16 @@ The current app version is displayed in Settings (Account page) and defined as `
 ### v6.0.2 — pill radius alignment
 - Header pill corner radius aligned to **28px (1.75rem)** to exactly match the bottom-nav pill (`rounded-[28px]`) — top and bottom boxes now look identical.
 
-| **v7** | S12 (current) | **Telegram QR-payment foundation** — `upgrade_requests` table + RPCs (`my_pending_requests`, `bot_lookup_email`, `bot_approve_upgrade`, `bot_reject_upgrade`) with strict RLS (clients read own rows only, bot writes via service_role). Cards page is **locked with a "Payment Under Review" screen** while a request is pending — unlocks instantly (realtime) on approve/reject. **Telegram Stars completely removed** (stars fields, `BOT_API_BASE` callback flow, Stars success modal, ⭐ button). Full bot build spec shipped: `TELEGRAM_BOT_PROMPT.txt` (architecture diagram + flow + commands + edge cases). |
+| **v8** | S13 (current) | **In-app UPI QR payments (no Telegram needed)** — user taps a pack on the Plans page → `create_upgrade_request` creates a pending request → QR modal (pay + write email in the UPI note) → request appears in the admin panel's new **Payments** tab with the user's name, email, requested plan + amount → **Activate** upgrades the plan instantly (Cards unlock via realtime) or **Decline** blocks re-submission for 24 hours. Telegram-bot-only flow is still supported (same table/RPCs). |
+
+### v8.0.0 — In-app UPI QR payments (S13)
+- **Migration 0019** (applied + live-verified end-to-end): `upgrade_requests.user_id` column; `create_upgrade_request()` (authenticated — validates account + pack, blocks duplicate pending, enforces the **24h cooldown** after a decline); `my_upgrade_requests()` (user status history); `admin_payments_list()` / `admin_payment_approve()` / `admin_payment_decline()` (same admin-session token gate as every other admin RPC).
+- **Plans page:** "Buy via Telegram" replaced with **"Pay via UPI QR"** — one tap creates the request and opens a QR payment modal (QR image slot + step-by-step: scan → pay exactly ₹X → **write your login email in the UPI payment note** → under review). Pending / 24h-cooldown states disable the buttons; realtime updates status.
+- **Admin panel:** new **Payments** tab — name, email, current plan, requested pack, amount, status + **Activate** (instantly upgrades `profiles.plan_type` + clears the user's card lock) / **Decline** (marks rejected, starts the 24h cooldown).
+- **Cards page:** red banner when the last request was declined (24h retry notice).
+- QR image is a placeholder for now — drop `public/upi-qr.png` and set `UPI_QR_IMAGE` in `src/App.jsx` when the owner provides it.
+
+| **v7** | S12 | **Telegram QR-payment foundation** — `upgrade_requests` table + RPCs (`my_pending_requests`, `bot_lookup_email`, `bot_approve_upgrade`, `bot_reject_upgrade`) with strict RLS (clients read own rows only, bot writes via service_role). Cards page is **locked with a "Payment Under Review" screen** while a request is pending — unlocks instantly (realtime) on approve/reject. **Telegram Stars completely removed** (stars fields, `BOT_API_BASE` callback flow, Stars success modal, ⭐ button). Full bot build spec shipped: `TELEGRAM_BOT_PROMPT.txt` (architecture diagram + flow + commands + edge cases). |
 
 ### v7.0.0 — Telegram QR-payment foundation (S12)
 - **New table `upgrade_requests`** (migration 0018, applied + verified live): pending/approved/rejected/refunded lifecycle, unique-paise amounts (e.g. ₹599.37) so the owner can match each credit in PhonePe by exact amount.
