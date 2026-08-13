@@ -43,7 +43,6 @@ src/
 ├── index.css             # Theme system + iOS glass surface system
 └── lib/supabase.js       # Supabase client
 functions/api/           # Cloudflare Pages Functions (edge) — Turnstile verify
-api/                     # Legacy Vercel serverless function (same endpoint, kept for rollback)
 supabase/migrations/      # SQL migrations (schema, RLS, RPCs)
 wrangler.toml            # Cloudflare Pages config
 _redirects / _headers    # Cloudflare Pages SPA fallback + security headers
@@ -71,5 +70,6 @@ Local test: `npx wrangler pages dev dist` (reads `.env`, runs the edge function 
 ## Git / Deploy
 
 - Main branch: `main`, remote: `https://github.com/prateeknot/vault-slate-versions`
-- Cloudflare Pages: auto-deploys from `main` (v9.0.2)
-- Vercel (legacy): the old `api/` function is kept so the site keeps working there until the domain is fully moved — remove it once Cloudflare is live
+- **Cloudflare Pages** (`virtual-cards` project): auto-deploys from `main` on every push
+- Live: **https://paid.cc.cd** (apex + www, both on Cloudflare)
+- Vercel: completely removed (project deleted, `api/` + `.vercel` cleaned from repo)

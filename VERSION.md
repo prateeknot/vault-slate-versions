@@ -41,6 +41,12 @@ The current app version is displayed in Settings (Account page) and defined as `
 
 | **v9** | S14 (current) | **No free cards + live plan sync + QR confirm** — free card claiming removed entirely (`claim_free_card` / `create_order` revoked from users): cards now ONLY come from a paid Top-Up Pack (admin activates the plan + assigns the card). Admin plan changes reach the user **LIVE** via realtime on `profiles` (no refresh needed). UPI QR flow now opens the modal **first** with Confirm/Cancel — the request is created only on Confirm. Real owner QR image applied (`public/upi-qr.jpg`). Login page dock + back button removed. |
 
+### v9.0.3 — Vercel fully removed (S14)
+- Vercel project `vault-slate-versions` **deleted** (user action) — repo cleanup: `api/verify-turnstile.js` (Vercel function), `.vercel/` and `scripts/vercel_cleanup.sh` removed. Vercel references dropped from README/VERSION. Site fully on Cloudflare.
+- **DNS fixed (root cause of the earlier confusion):** user's 2 records were wrong — an `A` record named `virtual-cards-33t.pages.dev.paid.cc.cd` (pages.dev typed into the NAME field, pointed at a random IP) and `www CNAME → paid.cc.cd` (apex had no record). Corrected via API with the DNS-edit token: deleted both, created `CNAME paid.cc.cd → virtual-cards-33t.pages.dev` + `CNAME www.paid.cc.cd → virtual-cards-33t.pages.dev` (both proxied).
+- **Live verified on paid.cc.cd:** HTTP 200, `server: cloudflare`, no `x-vercel-*` headers, v9.0.3 bundle, Turnstile endpoint → 403 not_human (real verify), security headers (nosniff/referrer-policy), SPA fallback 200, `/upi-qr.jpg` 200, `www.paid.cc.cd` 200. Both custom domains attached to the project (www active, apex activating).
+- **Cloudflare workflow complete:** git integration (push → auto-deploy), env vars (VITE_* production+preview), TURNSTILE_SECRET bound, edge function live.
+
 ### v9.0.2 — Cloudflare Pages migration (S14)
 - **New host:** moved from Vercel to **Cloudflare Pages** (user's request — asked for the diff between Vercel and Cloudflare and wanted the CLI installed + the work done).
 - **Edge function:** `api/verify-turnstile.js` (Vercel format) converted to **Cloudflare Pages Function** at `functions/api/verify-turnstile.js` (`onRequest` + `Request`/`Response`; env via `context.env.TURNSTILE_SECRET`; client IP via `cf-connecting-ip` with trusted x-forwarded-for fallback). **Verified locally end-to-end** (Node harness hitting the real siteverify API with the real secret): GET→405, empty body→400, bad JSON→400, fake token→403 `invalid-input-response`.
