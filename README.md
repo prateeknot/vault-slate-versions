@@ -76,3 +76,4 @@ Local test: `npx wrangler pages dev dist` (reads `.env`, runs the edge function 
 - **Cloudflare Pages** (`virtual-cards` project): auto-deploys from `main` on every push
 - Live: **https://paid.cc.cd** (apex + www, both on Cloudflare)
 - Vercel: completely removed (project deleted, `api/` + `.vercel` cleaned from repo)
+docs
