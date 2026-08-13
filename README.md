@@ -16,6 +16,7 @@ Temporary virtual card management web app. Admin lists virtual cards in tier poo
 - iOS-inspired liquid-glass UI with 5 color themes: **Mist, Lavender, Sage, Sand, Graphite** (switchable in Account)
 - Animated flip cards, shimmer, bottom-nav, card detail modal with one-tap copy
 - Full admin panel: overview stats, card CRUD + bulk add, user management + card assignment, Payments tab (UPI QR requests: **Activate auto-assigns the purchased tier's card**), plan limits, admin codes
+- **AI Assistant (v11):** chat with an OpenAI-compatible or Google Gemini model that has full admin powers through tools — add/delete/toggle cards, assign cards to users, change plans, approve/decline payments, change settings. Persistent history (AI reads past context before every reply). Config + history stored in Supabase (RPC-only, API key masked in UI), LLM calls + tool execution run server-side in a Cloudflare edge function (`/api/ai-chat`).
 
 ## Run Locally
 
@@ -48,7 +49,7 @@ wrangler.toml            # Cloudflare Pages config
 _redirects / _headers    # Cloudflare Pages SPA fallback + security headers
 ```
 
-## Deploy on Cloudflare Pages (v10 — current)
+## Deploy on Cloudflare Pages (v11 — current)
 
 **Option A — Git integration (easiest, auto-deploys on push like Vercel):**
 1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pick `prateeknot/vault-slate-versions`

@@ -14,8 +14,8 @@ const V2_PACKS = [
   { id: 'infinity', name: 'Infinity', price_inr: 1599, balance_usd: 82, badge: 'Max Balance' },
 ]
 
-// ─── Version (v1 → v2 → … → v9 → v10) ─────────────────────────────────────────
-const APP_VERSION = '10.0.0'
+// ─── Version (v1 → v2 → … → v10 → v11) ───────────────────────────────────────
+const APP_VERSION = '11.0.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
@@ -2469,6 +2469,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     { id: 'payments', label: 'Payments', icon: 'M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z' },
     { id: 'packs', label: 'Packs', icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z' },
     { id: 'settings', label: 'Settings', icon: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+    { id: 'ai', label: 'AI Assistant', icon: 'M9.813 3.17a.75.75 0 01.915.45L12 7.5l1.272-3.88a.75.75 0 011.089-.484 12.3 12.3 0 004.5 2.398.75.75 0 01.616.771l.004.042a12.31 12.31 0 01-.57 4.252.75.75 0 01-.572.461 12.3 12.3 0 01-4.686.33 12.31 12.31 0 01-4.2-1.912.75.75 0 01-.75-.75v-.004a12.31 12.31 0 01-.57-4.253.75.75 0 01.62-.77 12.3 12.3 0 014.5-2.398zM12 16.5a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3a.75.75 0 01.75-.75zM2.25 21a9.75 9.75 0 1119.5 0H2.25z' },
   ]
 
   if (sessionExpired) {
@@ -2552,7 +2553,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
           {sidebarItems.map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`shrink-0 px-4 py-3 text-[11px] font-bold uppercase tracking-wide transition-colors ${activeTab === tab.id ? 'text-brand border-b-2 border-brand' : 'text-muted-foreground'}`}>
-              {tab.id === 'cards' ? 'Cards' : tab.id === 'users' ? 'Users' : tab.id === 'payments' ? 'Payments' : tab.id}
+              {tab.id === 'cards' ? 'Cards' : tab.id === 'users' ? 'Users' : tab.id === 'payments' ? 'Payments' : tab.id === 'ai' ? 'AI' : tab.id}
             </button>
           ))}
         </div>
@@ -3015,6 +3016,8 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
             </div>
           )}
 
+          {activeTab === 'ai' && <AdminAIAssistant token={token} />}
+
           {activeTab === 'settings' && !dataLoading && (
             <div className="space-y-6">
               <div className="bg-white border border-border rounded-2xl p-5">
@@ -3279,6 +3282,270 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
           {toast.msg}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── AI ASSISTANT (admin panel — Phase 2) ───────────────────────────────────
+// Chat with an OpenAI-compatible / Google Gemini model that has FULL admin
+// powers through tools (add/delete cards, assign, change plans, approve
+// payments, change settings). Config + history live in Supabase (RPC-only);
+// the LLM call + tool execution happen server-side in /api/ai-chat.
+function AdminAIAssistant({ token }) {
+  const [config, setConfig] = useState(null)
+  const [provider, setProvider] = useState('openai')
+  const [baseUrl, setBaseUrl] = useState('https://api.openai.com/v1')
+  const [model, setModel] = useState('')
+  const [apiKey, setApiKey] = useState('')
+  const [enabled, setEnabled] = useState(false)
+  const [savingCfg, setSavingCfg] = useState(false)
+  const [cfgMsg, setCfgMsg] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [chatError, setChatError] = useState('')
+  const listRef = useRef(null)
+
+  const loadAll = useCallback(async () => {
+    try {
+      const [cfgRes, histRes] = await Promise.all([
+        supabase.rpc('admin_ai_config_get', { p_token: token }),
+        supabase.rpc('admin_ai_history_list', { p_token: token }),
+      ])
+      if (cfgRes.data?.ok) {
+        setConfig(cfgRes.data)
+        setProvider(cfgRes.data.provider || 'openai')
+        setBaseUrl(cfgRes.data.base_url || 'https://api.openai.com/v1')
+        setModel(cfgRes.data.model || '')
+        setEnabled(!!cfgRes.data.enabled)
+        setApiKey(cfgRes.data.api_key_masked || '')
+      }
+      if (Array.isArray(histRes.data)) setMessages(histRes.data)
+    } catch { } finally { setLoading(false) }
+  }, [token])
+
+  useEffect(() => { loadAll() }, [loadAll])
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
+  }, [messages, sending])
+
+  const saveConfig = async () => {
+    setSavingCfg(true)
+    setCfgMsg(null)
+    try {
+      // The masked placeholder means "keep my existing key" — the RPC handles
+      // an empty key by keeping the stored one, so only send a real key.
+      const keyToSend = apiKey.includes('...') ? '' : apiKey
+      const { data, error } = await supabase.rpc('admin_ai_config_set', {
+        p_token: token,
+        p_provider: provider,
+        p_base_url: baseUrl,
+        p_api_key: keyToSend,
+        p_model: model,
+        p_enabled: enabled,
+      })
+      if (error) throw error
+      if (!data?.ok) throw new Error(data?.error || 'save failed')
+      setCfgMsg({ ok: true, text: 'Settings saved ✓' })
+      loadAll()
+    } catch (err) {
+      setCfgMsg({ ok: false, text: err.message })
+    } finally {
+      setSavingCfg(false)
+    }
+  }
+
+  const testConnection = async () => {
+    setCfgMsg(null)
+    try {
+      const keyToSend = apiKey.includes('...') ? '' : apiKey
+      const { data, error } = await supabase.rpc('admin_ai_config_set', {
+        p_token: token, p_provider: provider, p_base_url: baseUrl,
+        p_api_key: keyToSend, p_model: model, p_enabled: enabled,
+      })
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'save failed')
+      // Force a 1-token probe through the edge function
+      const res = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, message: '__test__' }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setCfgMsg({ ok: false, text: `Connection failed: ${body.error || res.status} — ${body.hint || ''}` })
+        return
+      }
+      setCfgMsg({ ok: true, text: 'Connected! AI is ready 🎉' })
+    } catch (err) {
+      setCfgMsg({ ok: false, text: err.message })
+    }
+  }
+
+  const clearHistory = async () => {
+    if (!window.confirm('Clear the entire AI conversation history?')) return
+    try {
+      await supabase.rpc('admin_ai_history_clear', { p_token: token })
+      setMessages([])
+    } catch { }
+  }
+
+  const send = async () => {
+    const text = input.trim()
+    if (!text || sending) return
+    setInput('')
+    setChatError('')
+    setMessages((m) => [...m, { id: 'local-' + Date.now(), role: 'user', content: text, created_at: new Date().toISOString() }])
+    setSending(true)
+    try {
+      const res = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, message: text }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setChatError(body.hint || body.error || `Request failed (${res.status})`)
+        // Still refresh history so the saved user message shows up
+        loadAll()
+        return
+      }
+      setMessages((m) => [
+        ...m,
+        ...(body.tools_used?.length
+          ? [{ id: 'tools-' + Date.now(), role: 'tool', content: '', tool_name: body.tools_used.map((t) => `${t.name}: ${t.summary}`).join(' · ') }]
+          : []),
+        { id: 'ai-' + Date.now(), role: 'assistant', content: body.reply, created_at: new Date().toISOString() },
+      ])
+    } catch (err) {
+      setChatError('Could not reach the AI server: ' + err.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="card p-8 text-center"><p className="text-sm text-ink-muted">Loading AI Assistant…</p></div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Connection settings ── */}
+      <div className="bg-white border border-border rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-[14px] text-foreground">AI Connection</h3>
+          <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{enabled ? '● Connected' : '○ Disabled'}</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Provider</label>
+            <select value={provider} onChange={(e) => { setProvider(e.target.value); if (e.target.value === 'google') setBaseUrl('https://generativelanguage.googleapis.com/v1beta/openai'); if (e.target.value === 'openai') setBaseUrl('https://api.openai.com/v1') }} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
+              <option value="openai">OpenAI (gpt-4o-mini etc.)</option>
+              <option value="google">Google Gemini (OpenAI-compatible)</option>
+              <option value="custom">Custom (any OpenAI-compatible)</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Base URL</label>
+            <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Model</label>
+            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-4o-mini / gemini-2.0-flash" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">API Key {apiKey.includes('...') && <span className="text-emerald-600 normal-case">(saved — leave as-is to keep)</span>}</label>
+            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-... / AIza..." className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+          </div>
+        </div>
+        <label className="flex items-center gap-2.5 mt-4 text-[13px] text-foreground font-medium">
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="w-4 h-4 rounded border-border text-brand focus:ring-brand/30" />
+          Enable AI Assistant (admin chat + tool actions)
+        </label>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button onClick={saveConfig} disabled={savingCfg} className="bg-brand text-white text-[13px] font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50">{savingCfg ? 'Saving…' : 'Save Settings'}</button>
+          <button onClick={testConnection} disabled={savingCfg} className="bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2.5 rounded-xl hover:border-brand/50 transition-colors disabled:opacity-50">Test Connection</button>
+        </div>
+        {cfgMsg && <p className={`mt-2 text-[12px] ${cfgMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>{cfgMsg.text}</p>}
+      </div>
+
+      {/* ── Chat ── */}
+      <div className="bg-white border border-border rounded-2xl flex flex-col overflow-hidden" style={{ height: '520px' }}>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-brand-dim flex items-center justify-center">
+              <svg className="w-4 h-4 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 3.17a.75.75 0 01.915.45L12 7.5l1.272-3.88a.75.75 0 011.089-.484 12.3 12.3 0 004.5 2.398.75.75 0 01.616.771l.004.042a12.31 12.31 0 01-.57 4.252.75.75 0 01-.572.461 12.3 12.3 0 01-4.686.33 12.31 12.31 0 01-4.2-1.912.75.75 0 01-.75-.75v-.004a12.31 12.31 0 01-.57-4.253.75.75 0 01.62-.77 12.3 12.3 0 014.5-2.398zM12 16.5a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3a.75.75 0 01.75-.75zM2.25 21a9.75 9.75 0 1119.5 0H2.25z" /></svg>
+            </div>
+            <div>
+              <p className="font-bold text-[13px] text-foreground">AI Assistant</p>
+              <p className="text-[11px] text-muted-foreground">{config?.model || 'not configured'} · {config?.base_url || ''}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={clearHistory} className="text-[11px] font-bold text-muted-foreground hover:text-red-600 px-2 py-1 rounded-lg transition-colors">Clear history</button>
+            <span className="text-[10px] text-muted-foreground">{messages.filter((m) => m.role === 'user').length} messages</span>
+          </div>
+        </div>
+
+        <div ref={listRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-surface/30">
+          {messages.length === 0 && !sending && (
+            <div className="text-center py-10">
+              <p className="text-[13px] font-semibold text-foreground">Ask anything about your store</p>
+              <p className="text-[12px] text-muted-foreground mt-1">e.g. “add this card: 4111 1111 1111 1111 12/29 123” · “kitne users hain?” · “user ka plan spark karo” · “payments approve karo”</p>
+            </div>
+          )}
+          {messages.map((m) => {
+            if (m.role === 'tool') {
+              return (
+                <div key={m.id || m.created_at} className="flex justify-center">
+                  <span className="text-[10px] font-bold bg-brand-dim/60 text-brand px-2.5 py-1 rounded-full">⚡ {m.tool_name || m.content}</span>
+                </div>
+              )
+            }
+            const isUser = m.role === 'user'
+            return (
+              <div key={m.id || m.created_at} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${isUser ? 'bg-brand text-primary-foreground rounded-br-md whitespace-pre-wrap' : 'bg-white border border-border rounded-bl-md text-foreground whitespace-pre-wrap shadow-sm'}`}>
+                  {m.content}
+                </div>
+              </div>
+            )
+          })}
+          {sending && (
+            <div className="flex justify-start">
+              <div className="bg-white border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {chatError && (
+          <div className="px-5 py-2 bg-red-50 border-t border-red-100">
+            <p className="text-[12px] text-red-600 font-medium">{chatError}</p>
+          </div>
+        )}
+
+        <div className="px-4 py-3 border-t border-border bg-white">
+          <div className="flex gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+              placeholder={enabled ? 'Message the AI…' : 'Enable + save settings first, then chat'}
+              disabled={!enabled || sending}
+              aria-label="Message the AI"
+              className="flex-1 bg-surface border border-border rounded-xl px-4 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 disabled:opacity-50"
+            />
+            <button onClick={send} disabled={!enabled || sending || !input.trim()} className="shrink-0 w-11 rounded-xl bg-brand text-white flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40" aria-label="Send">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
