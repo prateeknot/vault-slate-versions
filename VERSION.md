@@ -2,7 +2,7 @@
 
 Versioning system: **v1 → v2 → v3 → v4 → v5 → ...**
 Each major version = a batch of user-facing / admin features shipped together.
-Git tags: `v1.0.0`, `v2.0.0`, ... (current tag = `v8.0.0`).
+Git tags: `v1.0.0`, `v2.0.0`, ... (current tag = `v9.0.0`).
 The current app version is displayed in Settings (Account page) and defined as `APP_VERSION` in `src/App.jsx`.
 
 | Version | Release | What's new |
@@ -38,6 +38,17 @@ The current app version is displayed in Settings (Account page) and defined as `
 - **Admin panel:** new **Payments** tab — name, email, current plan, requested pack, amount, status + **Activate** (instantly upgrades `profiles.plan_type` + clears the user's card lock) / **Decline** (marks rejected, starts the 24h cooldown).
 - **Cards page:** red banner when the last request was declined (24h retry notice).
 - QR image is a placeholder for now — drop `public/upi-qr.png` and set `UPI_QR_IMAGE` in `src/App.jsx` when the owner provides it.
+
+| **v9** | S14 (current) | **No free cards + live plan sync + QR confirm** — free card claiming removed entirely (`claim_free_card` / `create_order` revoked from users): cards now ONLY come from a paid Top-Up Pack (admin activates the plan + assigns the card). Admin plan changes reach the user **LIVE** via realtime on `profiles` (no refresh needed). UPI QR flow now opens the modal **first** with Confirm/Cancel — the request is created only on Confirm. Real owner QR image applied (`public/upi-qr.jpg`). Login page dock + back button removed. |
+
+### v9.0.0 — No free cards + live plan sync + QR confirm (S14)
+- **Migration 0020** (applied + verified live): `revoke execute on claim_free_card()/create_order(text) from public, anon, authenticated` (only service_role can call them now — verified grants); `profiles` added to the `supabase_realtime` publication.
+- **Cards gating:** signup/login no longer grants any card — free claim UI, guest free-card CTA and the admin free-claims toggle/badge removed. Cards page empty state now points to the Plans page; only an admin-assigned card after a paid pack shows up.
+- **Live plan sync:** App() subscribes to `profiles` realtime (own row) and instantly updates the plan badge/limits when the admin changes a plan in the Users tab or activates a payment.
+- **QR confirm/cancel:** tapping "Pay via UPI QR" opens the QR modal first — user reviews, then presses **Confirm & Send Request** (or **Cancel**). The `upgrade_requests` row is only created on Confirm; accidental lock-outs are impossible.
+- **Real QR image:** owner's `5181481080731667578_121.jpg` shipped as `public/upi-qr.jpg` + `UPI_QR_IMAGE = '/upi-qr.jpg'` (placeholder removed).
+- **Login page cleanup:** bottom dock + header back button removed (app can only be used after login/signup/guest), padding adjusted.
+- **Admin Users tab:** plan dropdown now normalizes plan casing (spark → Spark) so the value always matches an option.
 
 | **v7** | S12 | **Telegram QR-payment foundation** — `upgrade_requests` table + RPCs (`my_pending_requests`, `bot_lookup_email`, `bot_approve_upgrade`, `bot_reject_upgrade`) with strict RLS (clients read own rows only, bot writes via service_role). Cards page is **locked with a "Payment Under Review" screen** while a request is pending — unlocks instantly (realtime) on approve/reject. **Telegram Stars completely removed** (stars fields, `BOT_API_BASE` callback flow, Stars success modal, ⭐ button). Full bot build spec shipped: `TELEGRAM_BOT_PROMPT.txt` (architecture diagram + flow + commands + edge cases). |
 

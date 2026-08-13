@@ -1,6 +1,6 @@
 # VCardz — Virtual Cards
 
-Temporary virtual card management web app. Admin lists virtual cards in tier pools (Free/Spark/Orbit/Nova/Galaxy/Cosmos/Infinity), users sign up and claim cards with USD balances, and top up via INR packs.
+Temporary virtual card management web app. Admin lists virtual cards in tier pools (Spark/Orbit/Nova/Galaxy/Cosmos/Infinity), and users get cards ONLY by buying a Top-Up Pack (pay in-app via UPI QR → owner verifies → plan activates → admin assigns the card). Free card claiming was removed in v9 — no cards without a paid plan.
 
 ## Stack
 
@@ -10,8 +10,8 @@ Temporary virtual card management web app. Admin lists virtual cards in tier poo
 
 ## Features
 
-- Sign up / sign in → get a virtual card with a USD balance
-- Card tier pools with random USD balances (Free $0 → Infinity $82)
+- Sign up / sign in → **no cards until you buy a Top-Up Pack** (admin-only plan upgrades; live plan sync via realtime)
+- Card tier pools (Spark $15 → Infinity $82) — cards are assigned by the admin after plan activation
 - Top-Up Packs (INR price → USD card balance) — pay in-app via **UPI QR** (user taps a pack, pays, writes their email in the UPI note → owner verifies in the admin **Payments** tab → plan upgrades instantly; no gateway/commission)
 - iOS-inspired liquid-glass UI with 5 color themes: **Mist, Lavender, Sage, Sand, Graphite** (switchable in Account)
 - Animated flip cards, shimmer, bottom-nav, card detail modal with one-tap copy

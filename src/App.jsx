@@ -14,16 +14,15 @@ const V2_PACKS = [
   { id: 'infinity', name: 'Infinity', price_inr: 1599, balance_usd: 82, badge: 'Max Balance' },
 ]
 
-// ─── Version (v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8) ────────────────────────────
-const APP_VERSION = '8.0.0'
+// ─── Version (v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9) ─────────────────────────
+const APP_VERSION = '9.0.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
 
-// ─── UPI QR payment (v8) ────────────────────────────────────────────────────────
-// Drop the owner's UPI QR image into /public (e.g. upi-qr.png) and set the path
-// below. Empty string renders a placeholder box until the real QR is provided.
-const UPI_QR_IMAGE = ''
+// ─── UPI QR payment (v8/v9) ─────────────────────────────────────────────────────
+// Owner's UPI QR image lives in /public/upi-qr.jpg (v9: real QR applied).
+const UPI_QR_IMAGE = '/upi-qr.jpg'
 const UPGRADE_COOLDOWN_HOURS = 24
 
 const TIER_BALANCES = {
@@ -626,9 +625,6 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-md mx-auto px-4 flex items-center h-14">
-          <button onClick={() => onNavigate('landing')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
-          </button>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
               <svg className="w-3.5 h-3.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
@@ -638,7 +634,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
         </div>
       </header>
 
-      <main className="flex-1 max-w-md mx-auto w-full px-4 py-8 pb-28 space-y-4">
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-8 pb-10 space-y-4">
         {/* User card */}
 <div className="rounded-2xl border border-border bg-white overflow-hidden shadow-soft">
           <div className="w-full flex items-center gap-3 px-5 py-4 bg-white">
@@ -682,7 +678,7 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
             {turnstileFailed && <p className="text-center text-[11px] text-amber-600">Security check unavailable — you can continue without it.</p>}
 
             {!isLogin && (
-              <p className="text-center text-[11px] text-muted-foreground">Free plan on signup — upgrade to a Top-Up Pack anytime.</p>
+              <p className="text-center text-[11px] text-muted-foreground">Free account on signup — cards unlock when you buy a Top-Up Pack.</p>
             )}
 
             {error && (
@@ -787,8 +783,9 @@ function AuthPage({ onLogin, onAdminLogin, onNavigate }) {
           )}
         </div>
       </main>
-
-      <BottomNav view="auth" isLoggedIn={false} onNavigate={onNavigate} />
+      {/* v9: no bottom dock on the login page — the app can only be used after
+          login/signup/guest, so the dock (and the useless back button above) were
+          removed from this page. */}
     </div>
   )
 }
@@ -911,7 +908,6 @@ function CardDetailModal({ card, flipped, onFlip, onClose, onCopy, isPreview = f
 // ─── CARDS PAGE ───────────────────────────────────────────────────────────────
 function CardsPage({ currentUser, onNavigate, settings }) {
   const userPlan = currentUser?.plan ?? 'free'
-  const claimsEnabled = settings?.claims_enabled !== 'false'
   const isGuest = !!currentUser?.isGuest
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [search, setSearch] = useState('')
@@ -921,7 +917,6 @@ function CardsPage({ currentUser, onNavigate, settings }) {
   const [claimed, setClaimed] = useState([])
   const [overview, setOverview] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [claiming, setClaiming] = useState(false)
   const [layout, setLayout] = useState('list')
   const [favOnly, setFavOnly] = useState(false)
   const [pendingRequests, setPendingRequests] = useState([])
@@ -932,27 +927,8 @@ function CardsPage({ currentUser, onNavigate, settings }) {
     setTimeout(() => setToast(null), 2500)
   }, [])
 
-  const handleClaimFreeCard = async () => {
-    setClaiming(true)
-    try {
-      const { data, error } = await supabase.rpc('claim_free_card')
-      if (error) throw error
-      if (!data || data.length === 0) throw new Error('NO_FREE_CARDS')
-      showToast('🎉 Free card claimed with random USD balance!')
-      await fetchData()
-    } catch (err) {
-      console.error('Claim free card error:', err)
-      const msg = String(err.message || err)
-      if (msg.includes('NO_FREE_CARDS')) {
-        showToast('No free cards left right now. Upgrade your plan to get a card instantly.', 'error')
-      } else {
-        showToast('Could not claim free card. Please try again.', 'error')
-      }
-    } finally {
-      setClaiming(false)
-    }
-  }
-
+  // Cards are only available after buying a Top-Up Pack (admin activates the
+  // plan + assigns the card). Free claiming was removed in v9.
   const normalizeCards = (rows) => (rows || []).map((c) => ({
     id: c.id,
     uc_id: c.uc_id,
@@ -1230,11 +1206,11 @@ function CardsPage({ currentUser, onNavigate, settings }) {
             </div>
             <div className="mt-3">
               <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold mb-1">
-                <span>Free claim limit</span>
-                <span>{claimed.filter((c) => c.tier === 'free').length} / {overview?.card_limit ?? 1}</span>
+                <span>Card limit</span>
+                <span>{claimed.length} / {overview?.card_limit ?? 1}</span>
               </div>
               <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
-                <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${Math.min(100, (claimed.filter((c) => c.tier === 'free').length / Math.max(1, overview?.card_limit ?? 1)) * 100)}%` }} />
+                <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${Math.min(100, (claimed.length / Math.max(1, overview?.card_limit ?? 1)) * 100)}%` }} />
               </div>
             </div>
           </div>
@@ -1287,29 +1263,11 @@ function CardsPage({ currentUser, onNavigate, settings }) {
         {!isGuest && claimed.length === 0 && !loading && (
           <div className="bg-surface border border-border rounded-2xl p-6 text-center mb-4">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-primary flex items-center justify-center mb-3">
-              <svg className="w-7 h-7 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0v3.75m0-3.75h5.25" /></svg>
+              <svg className="w-7 h-7 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
             </div>
-            {claimsEnabled ? (
-              <>
-                <h3 className="font-black text-[16px] text-foreground mb-1">Get Your Free Card</h3>
-                <p className="text-[12px] text-muted-foreground mb-4">Claim a free virtual card with a random USD balance ($1 - $15)</p>
-                <button
-                  onClick={handleClaimFreeCard}
-                  disabled={claiming}
-                  className="w-full py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
-                >
-                  {claiming
-                    ? <span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Claiming...</span>
-                    : 'Claim Free Card'}
-                </button>
-              </>
-            ) : (
-              <>
-                <h3 className="font-black text-[16px] text-foreground mb-1">Free claims are paused</h3>
-                <p className="text-[12px] text-muted-foreground mb-4">Free card claiming is temporarily disabled. You can still buy a Top-Up Pack.</p>
-                <button onClick={() => onNavigate('pricing')} className="w-full py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 transition-opacity shadow-md">View Plans</button>
-              </>
-            )}
+            <h3 className="font-black text-[16px] text-foreground mb-1">No cards yet</h3>
+            <p className="text-[12px] text-muted-foreground mb-4 leading-relaxed">Cards unlock when you buy a Top-Up Pack. Pay via UPI QR and the admin activates your plan.</p>
+            <button onClick={() => onNavigate('pricing')} className="w-full py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 transition-opacity shadow-md">View Plans</button>
           </div>
         )}
 
@@ -1326,9 +1284,8 @@ function CardsPage({ currentUser, onNavigate, settings }) {
             </div>
             {isGuest ? (
               <>
-                <p className="text-muted-foreground text-[14px]">Sign up to claim your free virtual card</p>
-                <button onClick={() => onNavigate('auth')} className="mt-4 w-full max-w-xs py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 active:scale-[0.98] transition-all shadow-md">Create free account</button>
-                <button onClick={() => onNavigate('pricing')} className="mt-2 w-full max-w-xs py-3 rounded-xl bg-white border border-border text-foreground font-semibold text-[14px] hover:border-brand/40 transition-colors">View Plans</button>
+                <p className="text-muted-foreground text-[14px]">Buy a Top-Up Pack to unlock your first virtual card</p>
+                <button onClick={() => onNavigate('pricing')} className="mt-4 w-full max-w-xs py-3 rounded-xl font-bold text-[14px] text-primary-foreground bg-primary hover:opacity-90 active:scale-[0.98] transition-all shadow-md">View Plans</button>
               </>
             ) : (
               <p className="text-muted-foreground text-[14px]">No cards found</p>
@@ -1354,7 +1311,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
 function FAQPage({ onNavigate }) {
   const [open, setOpen] = useState(null)
   const items = [
-    { q: 'How do I get my first card?', a: 'Sign up for free and claim your free virtual card on the Cards page. It comes with a random USD balance ($1–$15). One free card per account.' },
+    { q: 'How do I get my first card?', a: 'Buy any Top-Up Pack on the Plans page — tap “Pay via UPI QR”, scan the QR with any UPI app, and write your account email in the payment note. Once the admin verifies the payment, your plan activates and your card unlocks.' },
     { q: 'How do Top-Up Packs work?', a: 'Packs (Spark ₹299 up to Infinity ₹1599) add a higher-balance card to your account. Tap any pack on the Plans page and pay via UPI QR — scan, pay, and write your email in the payment note. Once the admin verifies the payment, your plan activates automatically and your new card unlocks.' },
     { q: 'What is a virtual card used for?', a: 'These are virtual card details (number, expiry, CVV) designed for free trial sign-ups and verification. They work like a prepaid-style card for online use.' },
     { q: 'What happens when a card expires?', a: 'Expired cards can no longer be used for new sign-ups. Copy important details before the expiry date — you will see an amber alert on the Cards page for cards expiring within 60 days.' },
@@ -1441,17 +1398,28 @@ function PricingPage({ currentUser, onNavigate, settings }) {
     : 0
   const cooldownActive = cooldownUntil > Date.now()
 
-  const startUpgrade = async (pack) => {
+  // v9: opening the QR modal does NOT create the request yet. The user reviews
+  // the QR + instructions and then presses Confirm (or Cancel) — the request is
+  // only created on Confirm, so nobody gets locked accidentally.
+  const startUpgrade = (pack) => {
     if (!currentUser) {
       setNotice({ type: 'error', msg: 'Please log in first to upgrade your plan.' })
       return
     }
+    setNotice(null)
+    setPayModal({ pack, stage: 'confirm' })
+  }
+
+  const confirmUpgrade = async () => {
+    const pack = payModal?.pack
+    if (!pack) return
     setBuying(pack.id)
     setNotice(null)
     const { data, error } = await supabase.rpc('create_upgrade_request', { p_pack_id: pack.id })
     setBuying('')
-    if (error) { setNotice({ type: 'error', msg: error.message }); return }
+    if (error) { setPayModal(null); setNotice({ type: 'error', msg: error.message }); return }
     if (!data?.ok) {
+      setPayModal(null)
       if (data?.error === 'PENDING_EXISTS') {
         setNotice({ type: 'info', msg: 'You already have a payment under review — it will be activated once the admin verifies it.' })
       } else if (data?.error === 'COOLDOWN_ACTIVE') {
@@ -1462,7 +1430,7 @@ function PricingPage({ currentUser, onNavigate, settings }) {
       return
     }
     await refreshRequests()
-    setPayModal({ pack, req: data.request })
+    setPayModal({ pack, req: data.request, stage: 'sent' })
   }
 
   const recheckPayment = async () => {
@@ -1615,15 +1583,39 @@ function PricingPage({ currentUser, onNavigate, settings }) {
               <li className="flex gap-2"><span className="w-5 h-5 shrink-0 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center">3</span>Your request is now <span className="font-bold text-amber-600">Under Review</span>. The admin verifies the payment and your plan activates automatically — cards unlock instantly.</li>
             </ol>
 
-            <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 flex items-center gap-2">
-              <span className="text-amber-600">⏳</span>
-              <p className="text-[11px] font-semibold text-amber-800">Payment Under Review — cards unlock once verified</p>
-            </div>
+            {payModal.stage === 'sent' ? (
+              <>
+                <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 flex items-center gap-2">
+                  <span className="text-amber-600">⏳</span>
+                  <p className="text-[11px] font-semibold text-amber-800">Payment Under Review — cards unlock once verified</p>
+                </div>
 
-            <button onClick={recheckPayment} className="mt-3 w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-[13px] hover:opacity-90 transition-opacity">
-              Re-check Status
-            </button>
-            <p className="text-center text-[10px] text-muted-foreground mt-2">Your request is matched by the email written in the UPI note.</p>
+                <button onClick={recheckPayment} className="mt-3 w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-[13px] hover:opacity-90 transition-opacity">
+                  Re-check Status
+                </button>
+                <p className="text-center text-[10px] text-muted-foreground mt-2">Your request is matched by the email written in the UPI note.</p>
+              </>
+            ) : (
+              <>
+                <div className="mt-5 flex gap-2">
+                  <button
+                    onClick={() => setPayModal(null)}
+                    disabled={buying === payModal.pack.id}
+                    className="flex-1 py-3 rounded-xl bg-white border border-border text-foreground font-bold text-[13px] hover:border-brand/40 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmUpgrade}
+                    disabled={buying === payModal.pack.id}
+                    className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-[13px] hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {buying === payModal.pack.id ? 'Sending…' : 'Confirm & Send Request'}
+                  </button>
+                </div>
+                <p className="text-center text-[10px] text-muted-foreground mt-2">Nothing is sent until you press Confirm. Don't forget to write your email in the payment note.</p>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -2011,7 +2003,13 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
       }
       if (codesRes.ok && codesRes.data) setAdminCodes(codesRes.data)
       if (statsRes.ok && statsRes.data) setTotalUsers(statsRes.data.total_users ?? 0)
-      if (usersRes.ok && usersRes.data) setUsers(usersRes.data.map((u) => ({ ...u, name: u.display_name, plan: u.plan_type })))
+      if (usersRes.ok && usersRes.data) setUsers(usersRes.data.map((u) => ({
+        ...u,
+        name: u.display_name,
+        // Normalize plan casing (Free/Spark/…/Infinity) so the plan dropdown
+        // matches its option values even when the DB stores lowercase.
+        plan: u.plan_type ? u.plan_type.charAt(0).toUpperCase() + u.plan_type.slice(1) : 'Free',
+      })))
       if (packsRes.ok && packsRes.data) setPacks(packsRes.data)
       const failures = all.filter((r) => !r.ok)
       if (failures.length > 0) {
@@ -2561,7 +2559,6 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${settings?.maintenance === 'true' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{settings?.maintenance === 'true' ? '🛠 Maintenance ON' : '● All systems normal'}</span>
-                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${settings?.claims_enabled === 'false' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'}`}>{settings?.claims_enabled === 'false' ? 'Free claims paused' : 'Free claims ON'}</span>
                 <button onClick={downloadBackup} className="ml-auto flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors">
                   <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                   Download Backup
@@ -2788,10 +2785,10 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                               <button
                                 onClick={() => handleAssignFreeCard(user.id, user.email)}
                                 disabled={assigningFreeCard === user.id}
-                                title="Assign a free card to this user"
+                                title="Assign a card to this user (admin only)"
                                 className="flex items-center gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-bold text-[11px] px-2.5 py-1 rounded-full transition-colors disabled:opacity-40 whitespace-nowrap"
                               >
-                                {assigningFreeCard === user.id ? '...' : '+ Free Card'}
+                                {assigningFreeCard === user.id ? '...' : '+ Card'}
                               </button>
                               <button
                                 onClick={() => viewUserCards(user)}
@@ -3030,14 +3027,8 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                       <span className={`block w-5 h-5 bg-white rounded-full shadow transition-transform ${settings?.maintenance === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[13px] font-semibold text-foreground">Free card claims</p>
-                      <p className="text-[11px] text-muted-foreground">Pause the free card pool while you manage inventory.</p>
-                    </div>
-                    <button onClick={() => saveSetting('claims_enabled', settings?.claims_enabled === 'false' ? 'true' : 'false')} className={`shrink-0 w-12 h-7 rounded-full transition-colors ${settings?.claims_enabled === 'false' ? 'bg-slate-300' : 'bg-emerald-500'}`} aria-label="Toggle free claims">
-                      <span className={`block w-5 h-5 bg-white rounded-full shadow transition-transform ${settings?.claims_enabled === 'false' ? 'translate-x-1' : 'translate-x-6'}`} />
-                    </button>
+                  <div className="rounded-xl bg-surface border border-border px-3.5 py-2.5 text-[12px] text-muted-foreground leading-relaxed">
+                    Cards are only given after a paid Top-Up Pack (admin activates the plan and assigns the card). Free card claiming was removed in v9.
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Announcement banner (empty = hidden)</label>
@@ -3393,6 +3384,35 @@ function App() {
       sessionStorage.setItem('vcz_user', JSON.stringify({ ...saved, ...patch }))
     } catch { }
   }, [])
+
+  // v9: LIVE plan sync. When the admin upgrades a user's plan (Users tab) or
+  // approves a payment, the profiles row changes and realtime pushes it here,
+  // so the plan badge/limits update instantly without a page refresh.
+  useEffect(() => {
+    if (currentUser?.isGuest) return
+    let cancelled = false
+    let channel = null
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return
+      const uid = data.user?.id
+      if (!uid) return
+      channel = supabase.channel('profile-live')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` }, async () => {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('plan_type, display_name')
+            .eq('id', uid)
+            .maybeSingle()
+          if (!prof) return
+          handleUserUpdate({
+            plan: String(prof.plan_type || 'free').toLowerCase(),
+            ...(prof.display_name ? { name: prof.display_name } : {}),
+          })
+        })
+        .subscribe()
+    })
+    return () => { cancelled = true; if (channel) supabase.removeChannel(channel) }
+  }, [currentUser?.isGuest, currentUser?.email, handleUserUpdate])
 
   if (booting) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-sm text-muted-foreground">Loading…</p></div>
 
