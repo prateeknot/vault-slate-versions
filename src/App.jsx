@@ -2086,7 +2086,9 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   // mid-work; it only expires if the admin closes the tab (or logs out).
   useEffect(() => {
     if (!token) return
-    const beat = () => { supabase.rpc('admin_ping', { p_token: token }).catch(() => {}) }
+    // NOTE: supabase.rpc() returns a thenable (PostgrestBuilder) that has .then()
+    // but NOT .catch() — always use async/await + try/catch here, never .catch().
+    const beat = async () => { try { await supabase.rpc('admin_ping', { p_token: token }) } catch { } }
     beat()
     const id = setInterval(beat, 4 * 60 * 1000)
     return () => clearInterval(id)
