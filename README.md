@@ -6,7 +6,7 @@ Temporary virtual card management web app. Admin lists virtual cards in tier poo
 
 - **Frontend**: React 18 + Vite + Tailwind CSS v3
 - **Auth + DB**: Supabase (Auth, Postgres, RLS + code-gated RPCs)
-- **Hosting**: Vercel (GitHub auto-deploy)
+- **Hosting**: Cloudflare Pages (GitHub auto-deploy) — live at https://paid.cc.cd
 
 ## Features
 
@@ -15,7 +15,7 @@ Temporary virtual card management web app. Admin lists virtual cards in tier poo
 - Top-Up Packs (INR price → USD card balance) — pay in-app via **UPI QR** (user taps a pack, pays, writes their email in the UPI note → owner verifies in the admin **Payments** tab → plan upgrades instantly; no gateway/commission)
 - iOS-inspired liquid-glass UI with 5 color themes: **Mist, Lavender, Sage, Sand, Graphite** (switchable in Account)
 - Animated flip cards, shimmer, bottom-nav, card detail modal with one-tap copy
-- Full admin panel: overview stats, card CRUD + bulk add, user management + free-card assignment, plan limits, admin codes
+- Full admin panel: overview stats, card CRUD + bulk add, user management + card assignment, Payments tab (UPI QR requests: **Activate auto-assigns the purchased tier's card**), plan limits, admin codes
 
 ## Run Locally
 
@@ -48,7 +48,7 @@ wrangler.toml            # Cloudflare Pages config
 _redirects / _headers    # Cloudflare Pages SPA fallback + security headers
 ```
 
-## Deploy on Cloudflare Pages (v9.0.2 — current)
+## Deploy on Cloudflare Pages (v10 — current)
 
 **Option A — Git integration (easiest, auto-deploys on push like Vercel):**
 1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pick `prateeknot/vault-slate-versions`

@@ -14,8 +14,8 @@ const V2_PACKS = [
   { id: 'infinity', name: 'Infinity', price_inr: 1599, balance_usd: 82, badge: 'Max Balance' },
 ]
 
-// ─── Version (v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9) ─────────────────────────
-const APP_VERSION = '9.0.3'
+// ─── Version (v1 → v2 → … → v9 → v10) ─────────────────────────────────────────
+const APP_VERSION = '10.0.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
@@ -966,8 +966,10 @@ function CardsPage({ currentUser, onNavigate, settings }) {
   const fetchData = useCallback(async () => {
     try {
       if (isGuest) {
+        // Guests have no DB account — show zero cards (v10: removed a stale
+        // setPlanLimit(3) call that referenced a non-existent state).
         setClaimed([])
-        setPlanLimit(3)
+        setOverview(null)
         return
       }
       const [overviewRes, cardsRes, pendingRes, upgradeRes] = await Promise.all([
@@ -2040,7 +2042,10 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     const { data, error } = await supabase.rpc('admin_payment_approve', { p_token: token, p_request_id: p.id })
     if (error) { showToast(error.message, 'error'); return }
     if (!data?.ok) { showToast(data?.error || 'Approve failed', 'error'); return }
-    showToast(`Plan activated for ${p.display_name || p.email} 🎉`)
+    // v10: approve now auto-assigns a card of the purchased tier when available
+    showToast(data?.card_assigned
+      ? `Plan + card activated for ${p.display_name || p.email} 🎉`
+      : `Plan activated for ${p.display_name || p.email} (no card left in pool)`)
     fetchPayments()
     fetchAll()
   }

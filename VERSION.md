@@ -2,11 +2,12 @@
 
 Versioning system: **v1 → v2 → v3 → v4 → v5 → ...**
 Each major version = a batch of user-facing / admin features shipped together.
-Git tags: `v1.0.0`, `v2.0.0`, ... (current tag = `v9.0.0`).
+Git tags: `v1.0.0`, `v2.0.0`, ... (current tag = `v10.0.0`).
 The current app version is displayed in Settings (Account page) and defined as `APP_VERSION` in `src/App.jsx`.
 
 | Version | Release | What's new |
 |---------|---------|-----------|
+| **v10** | S15 (current) | **Production-hardening mahasangram** — full codebase + live Supabase audit (RLS, grants, triggers, auth config) + Cloudflare check. Migration 0021: **payment Approve now auto-assigns the purchased tier's card** (plan activates + card unlocks in one tap), `admin_set_user_plan` validates + normalizes plan values (garbage → `INVALID_PLAN`, `Infinity` → `infinity`), `plan_limits` seeded for every pack tier (fixes wrong card-limit display in `my_overview`). **Fixed a guest-flow crash** (`setPlanLimit(3)` referenced a state that doesn't exist). Auth `uri_allow_list` cleaned (dead Vercel URL removed, Cloudflare pages.dev added for preview testing). Bundle split via Vite `manualChunks` (react + supabase separate chunks — 500kB warning gone). See `TESTING_REPORT.md` §S15. |
 | **v1** | original | Base VCardz app — landing, auth (email + Google), cards page with preview, pack pricing, single-file `src/App.jsx`, Supabase backend (cards, user_cards, profiles, orders). |
 | **v2** | later | Top-Up packs model (Spark → Infinity, ₹299–₹1599 with USD card balances), Telegram Stars payment path, card pools + free-card claim with random USD balance, admin code sessions. |
 | **v3** | later | Admin user management, security fixes (RLS, admin RPC gating via 6-digit code), multi-card admin sessions, FIFO free-card sequencing, admin panel tabs (overview/cards/users/orders/packs/settings). |
