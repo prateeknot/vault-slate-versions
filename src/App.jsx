@@ -15,7 +15,7 @@ const V2_PACKS = [
 ]
 
 // ─── Version (v1 → v2 → … → v10 → v11) ───────────────────────────────────────
-const APP_VERSION = '11.1.0'
+const APP_VERSION = '12.0.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
@@ -277,11 +277,6 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
       activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.273 5.625A4.483 4.483 0 015.25 4.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 3H5.25a3 3 0 00-2.977 2.625zM2.273 8.625A4.483 4.483 0 015.25 7.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 6H5.25a3 3 0 00-2.977 2.625zM5.25 9a3 3 0 00-3 3v6a3 3 0 003 3h13.5a3 3 0 003-3v-6a3 3 0 00-3-3H5.25zm6.75 8.25a2.25 2.25 0 110-4.5 2.25 2.25 0 010 4.5z" /></svg>,
     },
     {
-      id: 'pricing', label: 'Plans',
-      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /><path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" /></svg>,
-      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M5.25 2.25a3 3 0 00-3 3v4.318a3 3 0 00.879 2.121l9.58 9.581c.92.92 2.39 1.056 3.46.3a18.598 18.598 0 005.441-5.44c.757-1.072.62-2.54-.3-3.461L11.73 3.53a3 3 0 00-2.122-.879H5.25zM6.375 7.5a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" clipRule="evenodd" /></svg>,
-    },
-    {
       id: isLoggedIn ? 'account' : 'auth', label: isLoggedIn ? 'Settings' : 'Login',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>,
       activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" /></svg>,
@@ -321,7 +316,7 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
           {rightTabs.map(renderTab)}
         </div>
         <button
-          onClick={() => onNavigate(isLoggedIn ? 'cards' : 'auth')}
+          onClick={() => onNavigate(isLoggedIn ? 'pricing' : 'auth')}
           aria-label="Top up"
           className="ios-topup ios-topup-icon absolute -top-5 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg border-4 border-background active:scale-95 transition-transform"
         >
@@ -1261,6 +1256,7 @@ function CardsPage({ currentUser, onNavigate, settings }) {
                 </button>
               </div>
               <button onClick={() => onNavigate('pricing')} className="text-[11px] text-brand font-semibold hover:underline">Add a card</button>
+              <button onClick={() => onNavigate('iban')} className="text-[11px] font-semibold text-emerald-600 hover:underline">IBAN Accounts</button>
             </div>
           </div>
         )}
@@ -1375,6 +1371,153 @@ function FAQPage({ onNavigate }) {
 }
 
 // ─── TOP-UP PACKS PRICING PAGE ────────────────────────────────────────��───────
+// ─── IBAN ACCOUNTS PAGE ───────────────────────────────────────────────────────
+// v12: European IBAN accounts added by the admin. Unlike virtual cards, EVERY
+// user sees ALL active IBANs (no assignment, no per-user limit) — latest first.
+const IBAN_COUNTRY_NAMES = { DE: 'Germany', FR: 'France', ES: 'Spain', IT: 'Italy', NL: 'Netherlands', BE: 'Belgium', AT: 'Austria', PT: 'Portugal', IE: 'Ireland', PL: 'Poland', SE: 'Sweden', FI: 'Finland', DK: 'Denmark', CZ: 'Czechia', HU: 'Hungary', RO: 'Romania', BG: 'Bulgaria', GR: 'Greece', HR: 'Croatia', SK: 'Slovakia', SI: 'Slovenia', LT: 'Lithuania', LV: 'Latvia', EE: 'Estonia', CY: 'Cyprus', MT: 'Malta', LU: 'Luxembourg' }
+
+function IBANPage({ onNavigate }) {
+  const [ibans, setIbans] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [toast, setToast] = useState(null)
+
+  const showToast = useCallback((msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 2500)
+  }, [])
+
+  const fetchIbans = useCallback(async () => {
+    try {
+      const { data } = await supabase.rpc('ibans_for_me')
+      if (Array.isArray(data)) setIbans(data)
+    } catch { } finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { fetchIbans() }, [fetchIbans])
+
+  // Realtime: admin adds an IBAN → it appears here instantly
+  useEffect(() => {
+    const ch = supabase.channel('ibans-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'iban_cards' }, () => fetchIbans())
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [fetchIbans])
+
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('Copied!')
+    } catch { showToast('Copy failed', 'error') }
+  }
+
+  const visible = ibans.filter((i) =>
+    !search ||
+    (i.bank_name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.holder_name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.country || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.iban || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  const formatIban = (iban) => {
+    const s = String(iban || '').replace(/\s/g, '')
+    return s.match(/.{1,4}/g)?.join(' ') || s
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+        <div className="max-w-md mx-auto px-4 flex items-center h-14">
+          <button onClick={() => onNavigate('cards')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.008v.008H6.75V6.75zm6 0h.008v.008h-.008V6.75zm-6 5.25h.008v.008H6.75V12zm6 0h.008v.008h-.008V12zm-6 5.25h.008v.008H6.75v-.008zm6 0h.008v.008h-.008v-.008z" /></svg>
+            </div>
+            <div>
+              <h1 className="font-bold text-foreground text-[15px] leading-tight">IBAN Accounts</h1>
+              <p className="text-[10px] text-muted-foreground leading-tight">European bank accounts</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-5 pb-28">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start gap-3 mb-4">
+          <span className="text-[16px]">🏦</span>
+          <div>
+            <p className="text-[12px] font-bold text-emerald-800">All IBANs are yours</p>
+            <p className="text-[11px] text-emerald-700 leading-relaxed">These European IBAN accounts are shared with every user — use any of them. New ones appear here automatically as the admin adds them.</p>
+          </div>
+        </div>
+
+        <div className="relative mb-4">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
+          <input type="search" aria-label="Search IBANs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by bank, holder, country, IBAN..."
+            className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/10 transition-colors" />
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <svg className="animate-spin h-7 w-7 text-brand" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+            <p className="mt-3 text-sm text-muted-foreground">Loading IBANs…</p>
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <p className="text-muted-foreground text-[14px]">{ibans.length === 0 ? 'No IBAN accounts yet — check back soon.' : 'No IBANs match your search.'}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {visible.map((i) => (
+              <div key={i.id} className="bg-white border border-border rounded-2xl p-4 shadow-soft">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-[13px] font-black text-emerald-700">
+                      {String(i.country || 'EU').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-bold text-[14px] text-foreground">{i.bank_name || 'Bank'}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {IBAN_COUNTRY_NAMES[String(i.country).toUpperCase()] || i.country} · {i.holder_name || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  {i.label && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-surface-2 text-muted-foreground border border-border shrink-0">{i.label}</span>}
+                </div>
+
+                <div className="rounded-xl bg-surface border border-border px-3.5 py-3 mb-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">IBAN</p>
+                    <CopyButton value={i.iban} label="Copy" />
+                  </div>
+                  <p className="font-mono text-[14px] font-bold text-foreground break-all leading-snug">{formatIban(i.iban)}</p>
+                </div>
+
+                {i.bic && (
+                  <div className="rounded-xl bg-surface border border-border px-3.5 py-2.5 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">BIC / SWIFT</p>
+                      <p className="font-mono text-[12px] font-bold text-foreground">{i.bic}</p>
+                    </div>
+                    <button onClick={() => copyText(i.bic)} className="text-[11px] font-semibold text-brand border border-brand/20 bg-brand-dim px-2.5 py-1.5 rounded-lg hover:bg-brand/10 transition-colors">Copy</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      <BottomNav view="cards" isLoggedIn={true} onNavigate={onNavigate} />
+    </div>
+  )
+}
+
 function PricingPage({ currentUser, onNavigate, settings }) {
   const [stock, setStock] = useState({})
   const [buying, setBuying] = useState('')
@@ -1846,6 +1989,13 @@ function AccountPage({ currentUser, onLogout, onNavigate, theme, onThemeChange, 
           </div>
         </div>
 
+        <button onClick={() => onNavigate('iban')} className="w-full bg-white border border-border rounded-2xl px-4 py-3.5 flex items-center gap-3 hover:border-emerald-400/50 transition-colors shadow-soft">
+          <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.008v.008H6.75V6.75zm6 0h.008v.008h-.008V6.75zm-6 5.25h.008v.008H6.75V12zm6 0h.008v.008h-.008V12zm-6 5.25h.008v.008H6.75v-.008zm6 0h.008v.008h-.008v-.008z" /></svg>
+          <p className="text-[13px] font-semibold text-foreground text-left">IBAN Accounts</p>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Europe</span>
+          <svg className="w-4 h-4 text-muted-foreground ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+        </button>
+
         <button onClick={() => onNavigate('faq')} className="w-full bg-white border border-border rounded-2xl px-4 py-3.5 flex items-center gap-3 hover:border-brand/40 transition-colors shadow-soft">
           <svg className="w-4 h-4 text-brand shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
           <p className="text-[13px] font-semibold text-foreground text-left">Help & FAQ</p>
@@ -1913,6 +2063,14 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const [editingCard, setEditingCard] = useState(null)
   const [formData, setFormData] = useState(ADMIN_EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState(null)
+
+  // v12: Manage Cards has 2 sub-tabs — normal virtual cards + European IBANs
+  const [cardsSubTab, setCardsSubTab] = useState('cards')
+  const [ibans, setIbans] = useState([])
+  const [showIbanModal, setShowIbanModal] = useState(false)
+  const [editingIban, setEditingIban] = useState(null)
+  const [ibanForm, setIbanForm] = useState({ iban: '', bank_name: '', holder_name: '', country: 'DE', bic: '', label: 'Bank', is_active: true })
+  const [ibanDeleteTarget, setIbanDeleteTarget] = useState(null)
 
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkText, setBulkText] = useState('')
@@ -1987,15 +2145,16 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
       .then((r) => ({ ok: true, data: r.data, error: r.error, fn }))
       .catch((e) => ({ ok: false, data: null, error: e, fn }))
     try {
-      const [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes] = await Promise.all([
+      const [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes, ibansRes] = await Promise.all([
         safe('admin_cards', { p_token: token }),
         safe('admin_limits', { p_token: token }),
         safe('admin_codes_list', { p_token: token }),
         safe('admin_stats', { p_token: token }),
         safe('admin_users', { p_token: token }),
         safe('admin_packs', { p_token: token }),
+        safe('admin_ibans', { p_token: token }),
       ])
-      const all = [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes]
+      const all = [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes, ibansRes]
       if (all.some((r) => r.error?.message === 'SESSION_INVALID')) { setSessionExpired(true); return }
       if (cardsRes.ok && cardsRes.data) setCards(cardsRes.data.map(normalizeCard))
       if (plansRes.ok && plansRes.data) {
@@ -2013,6 +2172,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
         plan: u.plan_type ? u.plan_type.charAt(0).toUpperCase() + u.plan_type.slice(1) : 'Free',
       })))
       if (packsRes.ok && packsRes.data) setPacks(packsRes.data)
+      if (ibansRes.ok && ibansRes.data) setIbans(ibansRes.data)
       const failures = all.filter((r) => !r.ok)
       if (failures.length > 0) {
         console.warn('Admin data partial failures:', failures.map((f) => f.fn + ': ' + (f.error?.message || f.error)))
@@ -2165,17 +2325,18 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
 
   const downloadBackup = async () => {
     try {
-      const [c, u, o, p, inv, s] = await Promise.all([
+      const [c, u, o, p, inv, s, ib] = await Promise.all([
         supabase.rpc('admin_cards', { p_token: token }),
         supabase.rpc('admin_users', { p_token: token }),
         supabase.rpc('admin_orders_list', { p_token: token }),
         supabase.rpc('admin_packs', { p_token: token }),
         supabase.rpc('admin_inventory', { p_token: token }),
         supabase.rpc('get_app_settings'),
+        supabase.rpc('admin_ibans', { p_token: token }),
       ])
       const backup = {
         exported_at: new Date().toISOString(),
-        cards: c.data || [], users: u.data || [], orders: o.data || [], packs: p.data || [], inventory: inv.data || [], settings: s.data || {},
+        cards: c.data || [], users: u.data || [], orders: o.data || [], packs: p.data || [], inventory: inv.data || [], settings: s.data || {}, ibans: ib.data || [],
       }
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
       const a = document.createElement('a')
@@ -2231,6 +2392,50 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
       const { error } = await supabase.rpc('admin_card_toggle', { p_token: token, p_id: card.id })
       if (error) throw error
       showToast('Card status updated')
+      fetchAll()
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  // ── v12: IBAN management ────────────────────────────────────────────────
+  const handleSaveIban = async () => {
+    if (!ibanForm.iban || !ibanForm.bank_name) { showToast('IBAN and bank name are required', 'error'); return }
+    const digits = String(ibanForm.iban).replace(/[^A-Za-z0-9]/g, '')
+    if (digits.length < 15 || digits.length > 34) { showToast('IBAN must be 15-34 characters', 'error'); return }
+    try {
+      const { error } = await supabase.rpc('admin_iban_save', {
+        p_token: token,
+        p_id: editingIban?.id ?? null,
+        p_iban: ibanForm.iban,
+        p_bank_name: ibanForm.bank_name,
+        p_holder_name: ibanForm.holder_name || '',
+        p_country: ibanForm.country || 'DE',
+        p_bic: ibanForm.bic || '',
+        p_label: ibanForm.label || 'Bank',
+        p_is_active: ibanForm.is_active,
+      })
+      if (error) throw error
+      showToast(editingIban ? 'IBAN updated' : 'IBAN added')
+      setShowIbanModal(false)
+      fetchAll()
+    } catch (err) { showToast('Failed to save IBAN: ' + err.message, 'error') }
+  }
+
+  const handleDeleteIban = async () => {
+    if (!ibanDeleteTarget) return
+    try {
+      const { error } = await supabase.rpc('admin_iban_delete', { p_token: token, p_id: ibanDeleteTarget.id })
+      if (error) throw error
+      showToast('IBAN deleted', 'info')
+      setIbanDeleteTarget(null)
+      fetchAll()
+    } catch (err) { showToast('Failed to delete: ' + err.message, 'error') }
+  }
+
+  const toggleIbanStatus = async (iban) => {
+    try {
+      const { error } = await supabase.rpc('admin_iban_toggle', { p_token: token, p_id: iban.id })
+      if (error) throw error
+      showToast('IBAN status updated')
       fetchAll()
     } catch (err) { showToast('Failed: ' + err.message, 'error') }
   }
@@ -2428,6 +2633,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const exportCards = () => downloadCSV('vcardz-cards.csv', cards.map((c) => ({ id: c.id, card_number: c.card_number, cardholder_name: c.name, provider: c.provider, tier: c.tier, balance_usd: c.balance_usd, expiry: c.expiry, cvv: c.cvv, status: c.is_active ? 'active' : 'inactive', created_at: c.created_at })))
   const exportUsers = () => downloadCSV('vcardz-users.csv', users.map((u) => ({ id: u.id, email: u.email, name: u.name, plan: u.plan, status: u.is_active === false ? 'suspended' : 'active', created_at: u.created_at })))
   const exportOrders = () => downloadCSV('vcardz-orders.csv', orders.map((o) => ({ id: o.id, email: o.user_email, name: o.display_name, pack: o.pack_name, amount_inr: o.amount_inr, status: o.status, gateway: o.gateway, gateway_ref: o.gateway_ref, created_at: o.created_at, paid_at: o.paid_at })))
+  const exportIbans = () => downloadCSV('vcardz-ibans.csv', ibans.map((i) => ({ id: i.id, iban: i.iban, bank_name: i.bank_name, holder_name: i.holder_name, country: i.country, bic: i.bic, label: i.label, status: i.is_active ? 'active' : 'inactive', created_at: i.created_at })))
 
   const filteredCards = cards.filter((c) => {
     if (cardSearch && !(c.name?.toLowerCase().includes(cardSearch.toLowerCase()) || c.card_number?.includes(cardSearch) || c.provider?.toLowerCase().includes(cardSearch.toLowerCase()))) return false
@@ -2538,7 +2744,19 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
           <div className="flex-1">
             <h1 className="font-bold text-[17px] text-foreground">{sidebarItems.find((s) => s.id === activeTab)?.label ?? 'Dashboard'}</h1>
           </div>
-          {activeTab === 'cards' && (
+          {activeTab === 'cards' && cardsSubTab === 'iban' && (
+            <div className="flex items-center gap-2">
+              <button onClick={exportIbans} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors">
+                <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                Export
+              </button>
+              <button onClick={() => { setEditingIban(null); setIbanForm({ iban: '', bank_name: '', holder_name: '', country: 'DE', bic: '', label: 'Bank', is_active: true }); setShowIbanModal(true) }} className="flex items-center gap-2 bg-brand text-white text-[13px] font-bold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity shadow-sm">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                Add IBAN
+              </button>
+            </div>
+          )}
+          {activeTab === 'cards' && cardsSubTab === 'cards' && (
             <div className="flex items-center gap-2">
               <button onClick={exportCards} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors">
                 <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
@@ -2674,6 +2892,18 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
 
           {activeTab === 'cards' && !dataLoading && (
             <div className="space-y-4">
+              {/* v12: Cards vs IBAN sub-tabs */}
+              <div className="flex bg-surface border border-border rounded-xl p-1 w-fit">
+                <button onClick={() => setCardsSubTab('cards')} className={`px-4 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${cardsSubTab === 'cards' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                  💳 Virtual Cards ({cards.length})
+                </button>
+                <button onClick={() => setCardsSubTab('iban')} className={`px-4 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${cardsSubTab === 'iban' ? 'bg-emerald-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                  🏦 IBAN Accounts ({ibans.length})
+                </button>
+              </div>
+
+              {cardsSubTab === 'cards' && (
+              <>
               <div className="flex flex-wrap gap-2 items-center">
                 <div className="relative flex-1 min-w-[220px]">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
@@ -2744,6 +2974,60 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                   </div>
                 )}
               </div>
+              </>
+              )}
+
+              {cardsSubTab === 'iban' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                    <span className="text-[16px]">🏦</span>
+                    <p className="text-[12px] text-emerald-800 font-medium">European IBAN accounts — every user sees ALL of these (latest first). No per-user limit.</p>
+                  </div>
+                  {ibans.length === 0 ? (
+                    <div className="bg-white border border-border rounded-2xl p-10 text-center">
+                      <p className="text-[13px] text-muted-foreground font-medium">No IBANs yet. Tap “Add IBAN” to create the first one.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-white border border-border rounded-2xl overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-border bg-surface">
+                              {['IBAN', 'Bank', 'Holder', 'Country', 'BIC', 'Status', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {ibans.map((i) => (
+                              <tr key={i.id} className="hover:bg-surface/50 transition-colors">
+                                <td className="px-4 py-3">
+                                  <span className="font-mono text-[12px] font-bold text-foreground whitespace-nowrap">{String(i.iban).slice(0, 4)}••• {String(i.iban).slice(-4)}</span>
+                                </td>
+                                <td className="px-4 py-3 text-[13px] text-foreground font-semibold whitespace-nowrap">{i.bank_name || '—'}</td>
+                                <td className="px-4 py-3 text-[12px] text-muted-foreground whitespace-nowrap">{i.holder_name || '—'}</td>
+                                <td className="px-4 py-3"><span className="text-[11px] bg-surface-2 text-muted-foreground px-2 py-0.5 rounded-full border border-border">{i.country || '—'}</span></td>
+                                <td className="px-4 py-3 text-[12px] font-mono text-muted-foreground whitespace-nowrap">{i.bic || '—'}</td>
+                                <td className="px-4 py-3">
+                                  <button onClick={() => toggleIbanStatus(i)} className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${i.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>{i.is_active ? 'Active' : 'Inactive'}</button>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-1">
+                                    <button onClick={() => { setEditingIban(i); setIbanForm({ iban: i.iban, bank_name: i.bank_name, holder_name: i.holder_name, country: i.country, bic: i.bic, label: i.label || 'Bank', is_active: i.is_active }); setShowIbanModal(true) }} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand-dim transition-colors" title="Edit">
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                                    </button>
+                                    <button onClick={() => setIbanDeleteTarget(i)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -3199,6 +3483,59 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
         </div>
       )}
 
+      {showIbanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-bold text-[15px] text-foreground">{editingIban ? 'Edit IBAN' : 'Add New IBAN'}</h3>
+              <button onClick={() => setShowIbanModal(false)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-surface transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="col-span-2">
+                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">IBAN *</label>
+                <input value={ibanForm.iban} onChange={(e) => setIbanForm((f) => ({ ...f, iban: e.target.value }))} placeholder="DE89 3704 0044 0532 0130 00" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Bank Name *</label>
+                  <input value={ibanForm.bank_name} onChange={(e) => setIbanForm((f) => ({ ...f, bank_name: e.target.value }))} placeholder="Deutsche Bank" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Holder Name</label>
+                  <input value={ibanForm.holder_name} onChange={(e) => setIbanForm((f) => ({ ...f, holder_name: e.target.value }))} placeholder="JOHN DOE" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground uppercase placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Country</label>
+                  <select value={ibanForm.country} onChange={(e) => setIbanForm((f) => ({ ...f, country: e.target.value }))} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
+                    {Object.keys(IBAN_COUNTRY_NAMES).map((c) => <option key={c} value={c}>{c} — {IBAN_COUNTRY_NAMES[c]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">BIC / SWIFT</label>
+                  <input value={ibanForm.bic} onChange={(e) => setIbanForm((f) => ({ ...f, bic: e.target.value }))} placeholder="DEUTDEFF" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Label</label>
+                  <select value={ibanForm.label} onChange={(e) => setIbanForm((f) => ({ ...f, label: e.target.value }))} className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-brand/50">
+                    {['Bank', 'Business', 'Personal', 'Savings', 'Other'].map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <label className="flex items-center gap-2.5 text-[13px] text-foreground font-medium pt-1">
+                <input type="checkbox" checked={ibanForm.is_active} onChange={(e) => setIbanForm((f) => ({ ...f, is_active: e.target.checked }))} className="w-4 h-4 rounded border-border text-brand focus:ring-brand/30" />
+                Active (visible to users)
+              </label>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowIbanModal(false)} className="flex-1 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2.5 rounded-xl hover:border-brand/50 transition-colors">Cancel</button>
+              <button onClick={handleSaveIban} className="flex-1 bg-emerald-600 text-white text-[13px] font-bold px-4 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors">{editingIban ? 'Save Changes' : 'Add IBAN'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showBulkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
@@ -3246,6 +3583,22 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)} className="flex-1 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2.5 rounded-xl hover:border-brand/50 transition-colors">Cancel</button>
               <button onClick={handleDeleteCard} className="flex-1 bg-red-600 text-white text-[13px] font-bold px-4 py-2.5 rounded-xl hover:bg-red-700 transition-colors">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ibanDeleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-red-50 flex items-center justify-center mb-3">
+              <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+            </div>
+            <h3 className="font-bold text-[15px] text-foreground mb-1">Delete IBAN</h3>
+            <p className="text-[13px] text-muted-foreground mb-5">Are you sure? This removes the <span className="font-bold text-foreground">{ibanDeleteTarget.bank_name || 'IBAN'}</span> account ({String(ibanDeleteTarget.iban).slice(0, 4)}•••{String(ibanDeleteTarget.iban).slice(-4)}) permanently.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setIbanDeleteTarget(null)} className="flex-1 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2.5 rounded-xl hover:border-brand/50 transition-colors">Cancel</button>
+              <button onClick={handleDeleteIban} className="flex-1 bg-red-600 text-white text-[13px] font-bold px-4 py-2.5 rounded-xl hover:bg-red-700 transition-colors">Delete</button>
             </div>
           </div>
         </div>
@@ -3725,6 +4078,7 @@ function App() {
       {view === 'landing' && <LandingPage isLoggedIn={!!currentUser} onNavigate={navigate} settings={appSettings} />}
       {view === 'auth' && <AuthPage onLogin={handleLogin} onAdminLogin={handleAdminLogin} onNavigate={navigate} />}
       {view === 'cards' && <CardsPage currentUser={currentUser} onNavigate={navigate} settings={appSettings} />}
+      {view === 'iban' && <IBANPage onNavigate={navigate} />}
       {view === 'pricing' && <PricingPage currentUser={currentUser} onNavigate={navigate} settings={appSettings} />}
       {view === 'account' && <AccountPage currentUser={currentUser} onLogout={handleLogout} onNavigate={navigate} theme={effectiveTheme} onThemeChange={setTheme} onUserUpdate={handleUserUpdate} />}
       {view === 'faq' && <FAQPage onNavigate={navigate} />}

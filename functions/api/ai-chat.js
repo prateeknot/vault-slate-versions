@@ -228,6 +228,22 @@ const TOOL_DEFS = [
   { name: 'decline_payment', description: 'Decline a pending UPI payment request (user must wait 24h to retry).', parameters: { type: 'object', properties: { request_id: { type: 'string' }, note: { type: 'string', description: 'Optional reason' } }, required: ['request_id'], additionalProperties: false } },
   { name: 'set_setting', description: 'Change a global setting (maintenance on/off, announcement banner, maintenance message, force theme).', parameters: { type: 'object', properties: { key: { type: 'string', enum: ['maintenance', 'announcement', 'maintenance_message', 'force_theme'] }, value: { type: 'string' } }, required: ['key', 'value'], additionalProperties: false } },
   { name: 'get_settings', description: 'Read current global settings.', parameters: { type: 'object', properties: {}, additionalProperties: false } },
+  { name: 'list_ibans', description: 'List all European IBAN accounts (bank, holder, country, BIC, status).', parameters: { type: 'object', properties: {}, additionalProperties: false } },
+  { name: 'add_iban', description: 'Add a NEW European IBAN account. It becomes visible to ALL users immediately.', parameters: { type: 'object', properties: {
+    iban: { type: 'string', description: 'Full IBAN, e.g. DE89 3704 0044 0532 0130 00' },
+    bank_name: { type: 'string', description: 'Bank name' },
+    holder_name: { type: 'string', description: 'Account holder name' },
+    country: { type: 'string', description: '2-letter country code, e.g. DE, FR, ES' },
+    bic: { type: 'string', description: 'BIC / SWIFT code' },
+    label: { type: 'string', enum: ['Bank', 'Business', 'Personal', 'Savings', 'Other'] },
+    is_active: { type: 'boolean' },
+  }, required: ['iban', 'bank_name'], additionalProperties: false } },
+  { name: 'update_iban', description: 'Edit an existing IBAN account (any subset of fields).', parameters: { type: 'object', properties: {
+    id: { type: 'string', description: 'IBAN uuid' },
+    iban: { type: 'string' }, bank_name: { type: 'string' }, holder_name: { type: 'string' }, country: { type: 'string' }, bic: { type: 'string' }, label: { type: 'string' }, is_active: { type: 'boolean' },
+  }, required: ['id'], additionalProperties: false } },
+  { name: 'delete_iban', description: 'Permanently delete an IBAN account.', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false } },
+  { name: 'toggle_iban', description: 'Activate/inactivate an IBAN account.', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false } },
 ]
 
 // ── LLM dispatch ──────────────────────────────────────────────────────────────
@@ -400,6 +416,33 @@ async function executeTool(rpc, token, name, args) {
       case 'approve_payment': res = await rpc('admin_payment_approve', { p_token: token, p_request_id: args.request_id }); break
       case 'decline_payment': res = await rpc('admin_payment_decline', { p_token: token, p_request_id: args.request_id, p_note: args.note || 'declined by admin' }); break
       case 'set_setting': res = await rpc('admin_set_setting', { p_token: token, p_key: args.key, p_value: String(args.value) }); break
+      case 'list_ibans': res = await rpc('admin_ibans', { p_token: token }); break
+      case 'add_iban':
+        res = await rpc('admin_iban_save', {
+          p_token: token, p_id: null,
+          p_iban: String(args.iban || '').replace(/\s/g, ''),
+          p_bank_name: args.bank_name,
+          p_holder_name: args.holder_name || '',
+          p_country: args.country || 'DE',
+          p_bic: args.bic || '',
+          p_label: args.label || 'Bank',
+          p_is_active: args.is_active !== false,
+        })
+        break
+      case 'update_iban':
+        res = await rpc('admin_iban_save', {
+          p_token: token, p_id: args.id,
+          p_iban: String(args.iban || '').replace(/\s/g, ''),
+          p_bank_name: args.bank_name,
+          p_holder_name: args.holder_name,
+          p_country: args.country,
+          p_bic: args.bic,
+          p_label: args.label,
+          p_is_active: args.is_active,
+        })
+        break
+      case 'delete_iban': res = await rpc('admin_iban_delete', { p_token: token, p_id: args.id }); break
+      case 'toggle_iban': res = await rpc('admin_iban_toggle', { p_token: token, p_id: args.id }); break
       case 'get_settings': res = await rpc('get_app_settings'); break
       default:
         return { ok: false, summary: `Unknown tool: ${name}` }
