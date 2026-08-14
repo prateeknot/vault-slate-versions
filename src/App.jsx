@@ -15,7 +15,7 @@ const V2_PACKS = [
 ]
 
 // ─── Version (v1 → v2 → … → v10 → v11) ───────────────────────────────────────
-const APP_VERSION = '12.2.0'
+const APP_VERSION = '13.0.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
@@ -321,8 +321,8 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
           {rightTabs.map(renderTab)}
         </div>
         <button
-          onClick={() => onNavigate(isLoggedIn ? 'pricing' : 'auth')}
-          aria-label="Top up"
+          onClick={() => onNavigate(isLoggedIn ? 'fakeid' : 'auth')}
+          aria-label="Fake ID"
           className="ios-topup ios-topup-icon absolute -top-5 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg border-4 border-background active:scale-95 transition-transform"
         >
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -1478,28 +1478,41 @@ function IBANPage({ onNavigate }) {
         ) : (
           <div className="space-y-3">
             {visible.map((i) => (
-              <div key={i.id} className="bg-white border border-border rounded-2xl p-4 shadow-soft">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-[13px] font-black text-emerald-700">
-                      {String(i.country || 'EU').slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-bold text-[14px] text-foreground">{i.bank_name || 'Bank'}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {IBAN_COUNTRY_NAMES[String(i.country).toUpperCase()] || i.country} · {i.holder_name || '—'}
-                      </p>
-                    </div>
-                  </div>
-                  {i.label && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-surface-2 text-muted-foreground border border-border shrink-0">{i.label}</span>}
-                </div>
+              <div key={i.id} className="space-y-3">
+                {/* Bank account card — cards-style visual */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 p-5 card-shimmer" style={{ boxShadow: '0 18px 34px -14px rgba(15,23,42,0.45)' }}>
+                  <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.10) 0%,transparent 55%)' }} />
+                  <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/[0.04] pointer-events-none" />
+                  <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-black/25 pointer-events-none" />
 
-                <div className="rounded-xl bg-surface border border-border px-3.5 py-3 mb-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">IBAN</p>
-                    <CopyButton value={i.iban} label="Copy" />
+                  <div className="flex items-start justify-between relative z-10 mb-6">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center text-[13px] font-black text-white">
+                        {String(i.country || 'EU').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-bold text-white">{i.bank_name || 'Bank'}</p>
+                        <p className="text-[10px] text-white/50">{IBAN_COUNTRY_NAMES[String(i.country).toUpperCase()] || i.country}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {i.label && <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-white/80">{i.label}</span>}
+                      <span className="bg-white/10 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/15 text-white text-[10px] font-bold">IBAN</span>
+                    </div>
                   </div>
-                  <p className="font-mono text-[14px] font-bold text-foreground break-all leading-snug">{formatIban(i.iban)}</p>
+
+                  <div className="relative z-10 mb-4">
+                    <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Account Holder</p>
+                    <p className="text-[14px] font-bold text-white tracking-wide">{i.holder_name || '—'}</p>
+                  </div>
+
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest">IBAN</p>
+                      <CopyButton value={i.iban} label="Copy" />
+                    </div>
+                    <p className="font-mono text-white/90 text-[13px] font-semibold tracking-wide break-all leading-snug">{formatIban(i.iban)}</p>
+                  </div>
                 </div>
 
                 {i.bic && (
@@ -1513,7 +1526,7 @@ function IBANPage({ onNavigate }) {
                 )}
 
                 {(i.card_number || i.expiry || i.cvv) && (
-                  <div className="rounded-xl border border-brand/15 bg-brand-dim/40 px-3.5 py-3 mt-2">
+                  <div className="rounded-xl border border-brand/15 bg-brand-dim/40 px-3.5 py-3">
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <p className="text-[10px] uppercase tracking-widest text-brand font-bold">Linked Card</p>
                       {i.card_number && <button onClick={() => copyText(i.card_number)} className="text-[10px] font-semibold text-brand border border-brand/20 bg-white px-2 py-1 rounded-lg hover:bg-brand/10 transition-colors">Copy</button>}
@@ -1548,6 +1561,177 @@ function IBANPage({ onNavigate }) {
 
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
       <BottomNav view="cards" isLoggedIn={true} onNavigate={onNavigate} />
+    </div>
+  )
+}
+
+// ─── FAKE ID GENERATOR PAGE ──────────────────────────────────────────────────
+// v13: the + (FakeID) button in the bottom nav opens this page. A user taps
+// Generate and gets a random ID from the admin-added pool in ~1s (shuffled so
+// everyone gets a different one). One ID per user — regenerating returns the
+// same one. The ID content is a formatted text block (sections + key: value).
+function FakeIDPage({ onNavigate, currentUser }) {
+  const [mine, setMine] = useState(null)
+  const [generating, setGenerating] = useState(false)
+  const [toast, setToast] = useState(null)
+
+  const showToast = useCallback((msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 2500)
+  }, [])
+
+  // parse a raw ID block into sections of { key: value } pairs
+  const parseId = useCallback((content) => {
+    const sections = []
+    let current = null
+    for (const raw of String(content || '').split('\n')) {
+      const line = raw.replace(/\r/g, '')
+      const secMatch = line.match(/━+\s*([A-Z0-9 &()]+)\s*━+.*/i) || line.match(/^\s*(PERSONAL DETAILS|BANK|IBAN|CREDIT CARD|FINANCIAL DETAILS|ADDRESS)\s*[:\\-]?.*$/i)
+      if (secMatch) {
+        const title = secMatch[1].replace(/[━─┉\s]+/g, ' ').trim()
+        if (title) {
+          current = { title, fields: [] }
+          sections.push(current)
+        }
+        continue
+      }
+      const kv = line.match(/^[├└│]?\s*([^:]+?)\s*:\s*(.*)$/)
+      if (kv && kv[1].trim() && kv[2].trim()) {
+        const key = kv[1].trim().replace(/^[├└│]\s*/, '').trim()
+        if (!current) { current = { title: 'Details', fields: [] }; sections.push(current) }
+        current.fields.push([key, kv[2].trim()])
+      }
+    }
+    return sections
+  }, [])
+
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('Copied!')
+    } catch { showToast('Copy failed', 'error') }
+  }
+
+  useEffect(() => {
+    supabase.rpc('fake_id_mine').then(({ data }) => {
+      if (data?.ok) setMine(data)
+    }).catch(() => { })
+  }, [])
+
+  const generate = async () => {
+    if (generating) return
+    setGenerating(true)
+    try {
+      const { data, error } = await supabase.rpc('fake_id_generate')
+      if (error) throw error
+      if (!data?.ok) {
+        showToast(data?.error === 'NO_FAKE_IDS_AVAILABLE' ? 'No fake IDs available right now — try again later.' : 'Generation failed', 'error')
+        return
+      }
+      setMine(data)
+      showToast(data.existing ? 'Your ID is ready below 🎉' : 'Fake ID generated 🎉')
+    } catch (err) {
+      showToast('Could not generate: ' + (err.message || 'unknown'), 'error')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const sections = mine?.content ? parseId(mine.content) : []
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="app-header sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
+        <div className="max-w-md mx-auto px-4 flex items-center h-14">
+          <button onClick={() => onNavigate('cards')} className="mr-3 text-muted-foreground hover:text-foreground" aria-label="Back">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+            </div>
+            <div>
+              <h1 className="font-bold text-foreground text-[15px] leading-tight">Fake ID</h1>
+              <p className="text-[10px] text-muted-foreground leading-tight">Instant identity generator</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-5 pb-28">
+        <div className="rounded-2xl border border-brand/15 bg-brand-dim/40 px-4 py-3 flex items-start gap-3 mb-4">
+          <span className="text-[16px]">🪪</span>
+          <div>
+            <p className="text-[12px] font-bold text-brand">Generate a random fake identity</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">Tap Generate and you will instantly receive a complete fake ID (personal details, bank, IBAN, card) — different for every user. One ID per account.</p>
+          </div>
+        </div>
+
+        {!mine && (
+          <div className="flex flex-col items-center justify-center py-14 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            </div>
+            <p className="text-[15px] font-bold text-foreground mb-1">No fake ID yet</p>
+            <p className="text-[12px] text-muted-foreground mb-6 max-w-[260px]">Press the button below and a complete fake identity will appear here in about a second.</p>
+            <button
+              onClick={generate}
+              disabled={generating}
+              className="w-full max-w-xs py-3.5 rounded-xl bg-primary text-primary-foreground font-black text-[14px] hover:opacity-90 active:scale-[0.98] transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {generating
+                ? <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Generating…</>
+                : <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-7.5-7.5v7.5m0 0l3-3m-3 3l-3-3" /></svg>Generate Fake ID</>}
+            </button>
+          </div>
+        )}
+
+        {mine && (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[12px] font-bold text-foreground">Your Fake ID</p>
+              <div className="flex items-center gap-2">
+                <button onClick={() => copyText(mine.content)} className="text-[11px] font-semibold text-brand border border-brand/20 bg-brand-dim px-2.5 py-1.5 rounded-lg hover:bg-brand/10 transition-colors">Copy All</button>
+                <button onClick={generate} disabled={generating} className="text-[11px] font-semibold text-primary-foreground bg-primary px-2.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">{generating ? '…' : 'Regenerate'}</button>
+              </div>
+            </div>
+
+            <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-soft">
+              <div className="bg-slate-900 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                </div>
+                <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">Identity · {mine.name || 'Fake ID'}</span>
+              </div>
+              <div className="p-4 space-y-4">
+                {sections.map((sec, si) => (
+                  <div key={si}>
+                    <p className="text-[10px] uppercase tracking-widest text-brand font-black mb-2 pb-1 border-b border-dashed border-brand/30">{sec.title}</p>
+                    <div className="space-y-1">
+                      {sec.fields.map(([k, v], fi) => (
+                        <div key={fi} className="flex items-baseline justify-between gap-3">
+                          <span className="text-[11px] text-muted-foreground font-semibold shrink-0">{k}</span>
+                          <span className="text-[12px] text-foreground font-bold text-right break-all">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {sections.length === 0 && (
+                  <pre className="whitespace-pre-wrap text-[11px] font-mono text-slate-800 leading-relaxed">{mine.content}</pre>
+                )}
+              </div>
+            </div>
+
+            <p className="text-center text-[10px] text-muted-foreground mt-3">This ID is linked to your account — it stays the same if you come back later.</p>
+          </>
+        )}
+      </main>
+
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      <BottomNav view="fakeid" isLoggedIn={!!currentUser} onNavigate={onNavigate} />
     </div>
   )
 }
@@ -2106,6 +2290,13 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const [ibanForm, setIbanForm] = useState({ iban: '', bank_name: '', holder_name: '', country: 'DE', bic: '', label: 'Bank', is_active: true, card_number: '', expiry: '', cvv: '' })
   const [ibanDeleteTarget, setIbanDeleteTarget] = useState(null)
 
+  // v13: Fake IDs pool — admin pastes full identities into one box
+  const [fakeIds, setFakeIds] = useState([])
+  const [fakeBulkText, setFakeBulkText] = useState('')
+  const [fakeBulkPreview, setFakeBulkPreview] = useState([])
+  const [fakeDeleteTarget, setFakeDeleteTarget] = useState(null)
+  const [fakeSearch, setFakeSearch] = useState('')
+
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [bulkPreview, setBulkPreview] = useState([])
@@ -2179,7 +2370,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
       .then((r) => ({ ok: true, data: r.data, error: r.error, fn }))
       .catch((e) => ({ ok: false, data: null, error: e, fn }))
     try {
-      const [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes, ibansRes] = await Promise.all([
+      const [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes, ibansRes, fakeRes] = await Promise.all([
         safe('admin_cards', { p_token: token }),
         safe('admin_limits', { p_token: token }),
         safe('admin_codes_list', { p_token: token }),
@@ -2187,8 +2378,9 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
         safe('admin_users', { p_token: token }),
         safe('admin_packs', { p_token: token }),
         safe('admin_ibans', { p_token: token }),
+        safe('admin_fake_ids', { p_token: token }),
       ])
-      const all = [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes, ibansRes]
+      const all = [cardsRes, plansRes, codesRes, statsRes, usersRes, packsRes, ibansRes, fakeRes]
       if (all.some((r) => r.error?.message === 'SESSION_INVALID')) { setSessionExpired(true); return }
       if (cardsRes.ok && cardsRes.data) setCards(cardsRes.data.map(normalizeCard))
       if (plansRes.ok && plansRes.data) {
@@ -2207,6 +2399,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
       })))
       if (packsRes.ok && packsRes.data) setPacks(packsRes.data)
       if (ibansRes.ok && ibansRes.data) setIbans(ibansRes.data)
+      if (fakeRes.ok && fakeRes.data) setFakeIds(fakeRes.data)
       const failures = all.filter((r) => !r.ok)
       if (failures.length > 0) {
         console.warn('Admin data partial failures:', failures.map((f) => f.fn + ': ' + (f.error?.message || f.error)))
@@ -2482,6 +2675,75 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     } catch (err) { showToast('Failed: ' + err.message, 'error') }
   }
 
+  // ── v13: Fake IDs ───────────────────────────────────────────────────────
+  // Split pasted content into blocks on blank lines — each block = one ID.
+  const parseFakeBulk = (text) => {
+    const blocks = String(text).split(/\n\s*\n+/).map((b) => b.trim()).filter((b) => b.length > 10)
+    return blocks.slice(0, 500).map((block) => {
+      const line = (re) => (block.match(re)?.[1] || '').trim()
+      return {
+        content: block,
+        name: line(/^[├└│]?\s*Name\s*:\s*(.*)$/im),
+        iban: line(/^[├└│]?\s*IBAN\s*:\s*([A-Z0-9 ]+)$/im),
+        email: line(/^[├└│]?\s*E-?Mail\s*:\s*(.*)$/im),
+        country: line(/^[├└│]?\s*Nationality\s*:\s*([A-Za-z ]+)$/im) || line(/^[├└│]?\s*Country\s*:\s*([A-Za-z ]+)$/im),
+      }
+    })
+  }
+
+  const handleFakeBulkAdd = async () => {
+    if (fakeBulkPreview.length === 0) { showToast('No valid fake IDs parsed', 'error'); return }
+    let ok = 0
+    for (const p of fakeBulkPreview) {
+      const { error } = await supabase.rpc('admin_fake_id_add', {
+        p_token: token,
+        p_content: p.content,
+        p_name: p.name || p.content.slice(0, 40),
+        p_iban: p.iban || '',
+        p_email: p.email || '',
+        p_country: p.country || '',
+        p_label: 'Other',
+        p_is_active: true,
+      })
+      if (!error) ok++
+      else { showToast('Bulk add failed: ' + error.message, 'error'); break }
+    }
+    showToast(`${ok} fake ID${ok !== 1 ? 's' : ''} added`)
+    setFakeBulkText(''); setFakeBulkPreview([])
+    fetchAll()
+  }
+
+  const handleDeleteFake = async () => {
+    if (!fakeDeleteTarget) return
+    try {
+      const { error } = await supabase.rpc('admin_fake_id_delete', { p_token: token, p_id: fakeDeleteTarget.id })
+      if (error) throw error
+      showToast('Fake ID deleted', 'info')
+      setFakeDeleteTarget(null)
+      fetchAll()
+    } catch (err) { showToast('Failed to delete: ' + err.message, 'error') }
+  }
+
+  const toggleFakeStatus = async (f) => {
+    try {
+      const { error } = await supabase.rpc('admin_fake_id_toggle', { p_token: token, p_id: f.id })
+      if (error) throw error
+      showToast('Fake ID status updated')
+      fetchAll()
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  const resetFake = async (f) => {
+    try {
+      const { error } = await supabase.rpc('admin_fake_id_reset', { p_token: token, p_id: f.id })
+      if (error) throw error
+      showToast('Assignment cleared — back in pool')
+      fetchAll()
+    } catch (err) { showToast('Failed: ' + err.message, 'error') }
+  }
+
+  const exportFakeIds = () => downloadCSV('vcardz-fakeids.csv', fakeIds.map((f) => ({ id: f.id, name: f.name, iban: f.iban, email: f.email, country: f.country, status: f.is_active ? 'active' : 'inactive', assigned_user_id: f.assigned_user_id || '', created_at: f.created_at })))
+
   const savePlanLimits = async () => {
     try {
       for (const [plan, limit] of Object.entries(planLimits)) {
@@ -2730,6 +2992,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     { id: 'payments', label: 'Payments', icon: 'M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z' },
     { id: 'packs', label: 'Packs', icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z' },
     { id: 'settings', label: 'Settings', icon: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+    { id: 'fakeids', label: 'Fake IDs', icon: 'M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z' },
   ]
 
   if (sessionExpired) {
@@ -2825,7 +3088,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
           {sidebarItems.map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`shrink-0 px-4 py-3 text-[11px] font-bold uppercase tracking-wide transition-colors ${activeTab === tab.id ? 'text-brand border-b-2 border-brand' : 'text-muted-foreground'}`}>
-              {tab.id === 'cards' ? 'Cards' : tab.id === 'users' ? 'Users' : tab.id === 'payments' ? 'Payments' : tab.id}
+              {tab.id === 'cards' ? 'Cards' : tab.id === 'users' ? 'Users' : tab.id === 'payments' ? 'Payments' : tab.id === 'fakeids' ? 'Fake IDs' : tab.id}
             </button>
           ))}
         </div>
@@ -3357,6 +3620,95 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
             </div>
           )}
 
+          {activeTab === 'fakeids' && !dataLoading && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative flex-1 min-w-[200px]">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
+                  <input aria-label="Search fake IDs" value={fakeSearch} onChange={(e) => setFakeSearch(e.target.value)} placeholder="Search by name, IBAN, email..." className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 transition-colors" />
+                </div>
+                <button onClick={exportFakeIds} disabled={fakeIds.length === 0} className="flex items-center gap-2 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2 rounded-xl hover:border-brand/50 transition-colors disabled:opacity-40">
+                  <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                  Export CSV
+                </button>
+                <div className="flex items-center gap-2 text-[12px] text-muted-foreground bg-surface border border-border rounded-xl px-3 py-2.5 shrink-0">
+                  <span className="font-bold text-foreground">{fakeIds.length}</span> total
+                </div>
+              </div>
+
+              {/* Single box — paste full identities separated by blank lines */}
+              <div className="bg-white border border-border rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-bold text-[14px] text-foreground">Add Fake IDs</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-brand">one per block</span>
+                </div>
+                <p className="text-[12px] text-muted-foreground mb-3 leading-relaxed">Paste full identities into the box — each ID separated by a <span className="font-bold text-foreground">blank line</span>. Any format works (key : value lines). Up to 500 per batch.</p>
+                <textarea
+                  value={fakeBulkText}
+                  onChange={(e) => { setFakeBulkText(e.target.value); setFakeBulkPreview(parseFakeBulk(e.target.value)) }}
+                  placeholder={'🏦 GERMANY — FINANCIAL DETAILS 🇩🇪\n\n━━━ 👤 PERSONAL DETAILS ━━━\n├ Name         : Susann Holzapfel B.Eng.\n├ Gender       : Female\n├ Date of Birth: 1950-07-15 (age 76)\n├ Address      : Unter den Linden 34\n├ City         : Berlin\n├ Postal/ZIP   : 10117\n├ Phone        : +49 176 878 3498\n├ E-Mail       : susann.beng@gmx.de\n├ Nationality  : German 🇩🇪\n└ Passport No. : 730136364\n\n━━━ 🏛️ BANK ━━━\n├ Bank Name      : Hamburger Sparkasse\n├ BIC / SWIFT    : HASPDEHHXXX\n└ Account No.    : 5490524746\n\n━━━ 🔢 IBAN ━━━\nDE67 2005 0550 5490 5247 46\n\n━━━ 💳 CREDIT CARD ━━━\n├ Type  : Visa\n├ Number: 4067 1094 3738 6817\n├ Expiry: 01/28\n└ CVV2  : 878\n\nANOTHER PERSON...\nName : Another Person\nIBAN : FR76 1234 5678 9012 3456\nE-Mail : other@mail.com\n\n'} className="w-full h-48 bg-surface border border-border rounded-xl px-3 py-2.5 text-[12px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50 resize-none"
+                />
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-[12px] text-muted-foreground"><span className="font-bold text-brand">{fakeBulkPreview.length}</span> valid IDs parsed</span>
+                  <button onClick={handleFakeBulkAdd} disabled={fakeBulkPreview.length === 0} className="flex items-center gap-2 bg-brand text-white text-[13px] font-bold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40">
+                    Add {fakeBulkPreview.length || ''} Fake IDs
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white border border-border rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-surface">
+                        {['Name', 'Country', 'IBAN', 'Email', 'Status', 'Assigned', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {fakeIds.filter((f) =>
+                        !fakeSearch ||
+                        (f.name || '').toLowerCase().includes(fakeSearch.toLowerCase()) ||
+                        (f.iban || '').toLowerCase().includes(fakeSearch.toLowerCase()) ||
+                        (f.email || '').toLowerCase().includes(fakeSearch.toLowerCase())
+                      ).map((f) => (
+                        <tr key={f.id} className="hover:bg-surface/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <p className="text-[13px] font-semibold text-foreground whitespace-nowrap">{f.name || '—'}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono">{String(f.content).slice(0, 50)}…</p>
+                          </td>
+                          <td className="px-4 py-3"><span className="text-[11px] bg-surface-2 text-muted-foreground px-2 py-0.5 rounded-full border border-border">{f.country || '—'}</span></td>
+                          <td className="px-4 py-3 text-[12px] font-mono text-muted-foreground whitespace-nowrap">{f.iban ? String(f.iban).slice(0, 8) + '…' : '—'}</td>
+                          <td className="px-4 py-3 text-[12px] text-muted-foreground whitespace-nowrap">{f.email || '—'}</td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => toggleFakeStatus(f)} className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${f.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>{f.is_active ? 'Active' : 'Inactive'}</button>
+                          </td>
+                          <td className="px-4 py-3">
+                            {f.assigned_user_id ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Taken</span>
+                                <button onClick={() => resetFake(f)} className="text-[10px] font-bold text-muted-foreground hover:text-foreground underline">Reset</button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Available</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => setFakeDeleteTarget(f)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {fakeIds.filter((f) => !fakeSearch || (f.name || '').toLowerCase().includes(fakeSearch.toLowerCase())).length === 0 && (
+                  <div className="p-10 text-center"><p className="text-[13px] text-muted-foreground font-medium">No fake IDs yet — paste identities above to build the pool.</p></div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'settings' && !dataLoading && (
             <div className="space-y-6">
               <div className="bg-white border border-border rounded-2xl p-5">
@@ -3658,6 +4010,22 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
         </div>
       )}
 
+      {fakeDeleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-red-50 flex items-center justify-center mb-3">
+              <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+            </div>
+            <h3 className="font-bold text-[15px] text-foreground mb-1">Delete fake ID</h3>
+            <p className="text-[13px] text-muted-foreground mb-5">Are you sure? This removes <span className="font-bold text-foreground">{fakeDeleteTarget.name || 'this identity'}</span> permanently{fakeDeleteTarget.assigned_user_id ? ' — the user who received it will lose it.' : '.'}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setFakeDeleteTarget(null)} className="flex-1 bg-surface border border-border text-foreground text-[13px] font-bold px-4 py-2.5 rounded-xl hover:border-brand/50 transition-colors">Cancel</button>
+              <button onClick={handleDeleteFake} className="flex-1 bg-red-600 text-white text-[13px] font-bold px-4 py-2.5 rounded-xl hover:bg-red-700 transition-colors">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {userCardsUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
@@ -3867,6 +4235,7 @@ function App() {
       {view === 'auth' && <AuthPage onLogin={handleLogin} onAdminLogin={handleAdminLogin} onNavigate={navigate} />}
       {view === 'cards' && <CardsPage currentUser={currentUser} onNavigate={navigate} settings={appSettings} />}
       {view === 'iban' && <IBANPage onNavigate={navigate} />}
+      {view === 'fakeid' && <FakeIDPage onNavigate={navigate} currentUser={currentUser} />}
       {view === 'pricing' && <PricingPage currentUser={currentUser} onNavigate={navigate} settings={appSettings} />}
       {view === 'account' && <AccountPage currentUser={currentUser} onLogout={handleLogout} onNavigate={navigate} theme={effectiveTheme} onThemeChange={setTheme} onUserUpdate={handleUserUpdate} />}
       {view === 'faq' && <FAQPage onNavigate={navigate} />}

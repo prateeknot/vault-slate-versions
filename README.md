@@ -16,7 +16,8 @@ Temporary virtual card management web app. Admin lists virtual cards in tier poo
 - iOS-inspired liquid-glass UI with 5 color themes: **Mist, Lavender, Sage, Sand, Graphite** (switchable in Account)
 - Animated flip cards, shimmer, bottom-nav, card detail modal with one-tap copy
 - Full admin panel: overview stats, card CRUD + bulk add, user management + card assignment, Payments tab (UPI QR requests: **Activate auto-assigns the purchased tier's card**), plan limits, admin codes
-- **IBAN Accounts (v12):** admin adds European IBAN accounts (with linked card number/expiry/CVV) in Manage Cards → 🏦 IBAN sub-tab; every user sees ALL active IBANs (latest first, no per-user limit) on the IBAN page — reachable from its own **IBAN tab in the bottom nav** or via Cards/Settings links. Plans moved out of the bottom nav — buy via the center + button, "Add a card" on Cards, or "Upgrade Plan" in Settings.
+- **IBAN Accounts (v12):** admin adds European IBAN accounts (with linked card number/expiry/CVV) in Manage Cards → 🏦 IBAN sub-tab; every user sees ALL active IBANs (latest first, no per-user limit) on the IBAN page — reachable from its own **IBAN tab in the bottom nav** or via Cards/Settings links. Plans moved out of the bottom nav — buy via "Add a card" on Cards or "Upgrade Plan" in Settings.
+- **Fake ID Generator (v13):** the center **+ button in the bottom nav is now the FakeID page** — users tap Generate and get a random full identity (personal details + bank + IBAN + credit card) from the admin pool in ~1s, shuffled so everyone gets a different one (1 per user). Admin adds IDs by pasting complete formatted blocks into a single textarea in the new **Fake IDs** admin tab. IBAN page redesigned with the cards-style gradient look.
 
 ## Run Locally
 
