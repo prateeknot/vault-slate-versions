@@ -283,7 +283,7 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
     },
   ]
 
-  const visibleTabs = isLoggedIn ? tabs : [tabs[3]]
+  const visibleTabs = isLoggedIn ? tabs : [tabs[tabs.length - 1]]
 
   const activeView = view === 'account' || view === 'settings' ? 'account' : view === 'auth' ? (isLoggedIn ? 'account' : 'auth') : view
   const activeColor = 'text-brand'
