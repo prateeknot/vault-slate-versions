@@ -15,7 +15,7 @@ const V2_PACKS = [
 ]
 
 // ─── Version (v1 → v2 → … → v10 → v11) ───────────────────────────────────────
-const APP_VERSION = '12.0.0'
+const APP_VERSION = '12.1.0'
 
 const TELEGRAM_BOT_USERNAME = 'temp_card_pro_bot'
 const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
@@ -275,6 +275,11 @@ function BottomNav({ view, isLoggedIn, onNavigate }) {
       id: 'cards', label: 'Cards',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>,
       activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.273 5.625A4.483 4.483 0 015.25 4.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 3H5.25a3 3 0 00-2.977 2.625zM2.273 8.625A4.483 4.483 0 015.25 7.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0018.75 6H5.25a3 3 0 00-2.977 2.625zM5.25 9a3 3 0 00-3 3v6a3 3 0 003 3h13.5a3 3 0 003-3v-6a3 3 0 00-3-3H5.25zm6.75 8.25a2.25 2.25 0 110-4.5 2.25 2.25 0 010 4.5z" /></svg>,
+    },
+    {
+      id: 'iban', label: 'IBAN',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.008v.008H6.75V6.75zm6 0h.008v.008h-.008V6.75zm-6 5.25h.008v.008H6.75V12zm6 0h.008v.008h-.008V12zm-6 5.25h.008v.008H6.75v-.008zm6 0h.008v.008h-.008v-.008z" /></svg>,
+      activeFill: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.008v.008H6.75V6.75zm6 0h.008v.008h-.008V6.75zm-6 5.25h.008v.008H6.75V12zm6 0h.008v.008h-.008V12zm-6 5.25h.008v.008H6.75v-.008zm6 0h.008v.008h-.008v-.008z" /></svg>,
     },
     {
       id: isLoggedIn ? 'account' : 'auth', label: isLoggedIn ? 'Settings' : 'Login',
@@ -1506,6 +1511,35 @@ function IBANPage({ onNavigate }) {
                     <button onClick={() => copyText(i.bic)} className="text-[11px] font-semibold text-brand border border-brand/20 bg-brand-dim px-2.5 py-1.5 rounded-lg hover:bg-brand/10 transition-colors">Copy</button>
                   </div>
                 )}
+
+                {(i.card_number || i.expiry || i.cvv) && (
+                  <div className="rounded-xl border border-brand/15 bg-brand-dim/40 px-3.5 py-3 mt-2">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-[10px] uppercase tracking-widest text-brand font-bold">Linked Card</p>
+                      {i.card_number && <button onClick={() => copyText(i.card_number)} className="text-[10px] font-semibold text-brand border border-brand/20 bg-white px-2 py-1 rounded-lg hover:bg-brand/10 transition-colors">Copy</button>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {i.card_number && (
+                        <div className="col-span-2">
+                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Card Number</p>
+                          <p className="font-mono text-[13px] font-bold text-foreground break-all">•••• •••• •••• {String(i.card_number).slice(-4)}</p>
+                        </div>
+                      )}
+                      {i.expiry && (
+                        <div>
+                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Expiry</p>
+                          <p className="font-mono text-[12px] font-bold text-foreground">{i.expiry}</p>
+                        </div>
+                      )}
+                      {i.cvv && (
+                        <div>
+                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">CVV</p>
+                          <p className="font-mono text-[12px] font-bold text-foreground">{i.cvv}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -2069,7 +2103,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const [ibans, setIbans] = useState([])
   const [showIbanModal, setShowIbanModal] = useState(false)
   const [editingIban, setEditingIban] = useState(null)
-  const [ibanForm, setIbanForm] = useState({ iban: '', bank_name: '', holder_name: '', country: 'DE', bic: '', label: 'Bank', is_active: true })
+  const [ibanForm, setIbanForm] = useState({ iban: '', bank_name: '', holder_name: '', country: 'DE', bic: '', label: 'Bank', is_active: true, card_number: '', expiry: '', cvv: '' })
   const [ibanDeleteTarget, setIbanDeleteTarget] = useState(null)
 
   const [showBulkModal, setShowBulkModal] = useState(false)
@@ -2401,6 +2435,11 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
     if (!ibanForm.iban || !ibanForm.bank_name) { showToast('IBAN and bank name are required', 'error'); return }
     const digits = String(ibanForm.iban).replace(/[^A-Za-z0-9]/g, '')
     if (digits.length < 15 || digits.length > 34) { showToast('IBAN must be 15-34 characters', 'error'); return }
+    if (ibanForm.card_number) {
+      const cardDigits = String(ibanForm.card_number).replace(/\D/g, '')
+      if (cardDigits.length < 12 || cardDigits.length > 19) { showToast('Card number must be 12-19 digits', 'error'); return }
+    }
+    if (ibanForm.expiry && !/^\d{2}\/\d{2}$/.test(ibanForm.expiry)) { showToast('Expiry must be MM/YY', 'error'); return }
     try {
       const { error } = await supabase.rpc('admin_iban_save', {
         p_token: token,
@@ -2412,6 +2451,9 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
         p_bic: ibanForm.bic || '',
         p_label: ibanForm.label || 'Bank',
         p_is_active: ibanForm.is_active,
+        p_card_number: ibanForm.card_number || '',
+        p_expiry: ibanForm.expiry || '',
+        p_cvv: ibanForm.cvv || '',
       })
       if (error) throw error
       showToast(editingIban ? 'IBAN updated' : 'IBAN added')
@@ -2633,7 +2675,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
   const exportCards = () => downloadCSV('vcardz-cards.csv', cards.map((c) => ({ id: c.id, card_number: c.card_number, cardholder_name: c.name, provider: c.provider, tier: c.tier, balance_usd: c.balance_usd, expiry: c.expiry, cvv: c.cvv, status: c.is_active ? 'active' : 'inactive', created_at: c.created_at })))
   const exportUsers = () => downloadCSV('vcardz-users.csv', users.map((u) => ({ id: u.id, email: u.email, name: u.name, plan: u.plan, status: u.is_active === false ? 'suspended' : 'active', created_at: u.created_at })))
   const exportOrders = () => downloadCSV('vcardz-orders.csv', orders.map((o) => ({ id: o.id, email: o.user_email, name: o.display_name, pack: o.pack_name, amount_inr: o.amount_inr, status: o.status, gateway: o.gateway, gateway_ref: o.gateway_ref, created_at: o.created_at, paid_at: o.paid_at })))
-  const exportIbans = () => downloadCSV('vcardz-ibans.csv', ibans.map((i) => ({ id: i.id, iban: i.iban, bank_name: i.bank_name, holder_name: i.holder_name, country: i.country, bic: i.bic, label: i.label, status: i.is_active ? 'active' : 'inactive', created_at: i.created_at })))
+  const exportIbans = () => downloadCSV('vcardz-ibans.csv', ibans.map((i) => ({ id: i.id, iban: i.iban, bank_name: i.bank_name, holder_name: i.holder_name, country: i.country, bic: i.bic, label: i.label, card_number: i.card_number || '', expiry: i.expiry || '', cvv: i.cvv || '', status: i.is_active ? 'active' : 'inactive', created_at: i.created_at })))
 
   const filteredCards = cards.filter((c) => {
     if (cardSearch && !(c.name?.toLowerCase().includes(cardSearch.toLowerCase()) || c.card_number?.includes(cardSearch) || c.provider?.toLowerCase().includes(cardSearch.toLowerCase()))) return false
@@ -2750,7 +2792,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                 <svg className="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                 Export
               </button>
-              <button onClick={() => { setEditingIban(null); setIbanForm({ iban: '', bank_name: '', holder_name: '', country: 'DE', bic: '', label: 'Bank', is_active: true }); setShowIbanModal(true) }} className="flex items-center gap-2 bg-brand text-white text-[13px] font-bold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity shadow-sm">
+              <button onClick={() => { setEditingIban(null); setIbanForm({ iban: '', bank_name: '', holder_name: '', country: 'DE', bic: '', label: 'Bank', is_active: true, card_number: '', expiry: '', cvv: '' }); setShowIbanModal(true) }} className="flex items-center gap-2 bg-brand text-white text-[13px] font-bold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity shadow-sm">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 Add IBAN
               </button>
@@ -2993,7 +3035,7 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                         <table className="w-full">
                           <thead>
                             <tr className="border-b border-border bg-surface">
-                              {['IBAN', 'Bank', 'Holder', 'Country', 'BIC', 'Status', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}
+                              {['IBAN', 'Bank', 'Holder', 'Country', 'Card', 'BIC', 'Status', 'Actions'].map((h) => <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-muted-foreground font-bold whitespace-nowrap">{h}</th>)}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -3005,13 +3047,16 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                                 <td className="px-4 py-3 text-[13px] text-foreground font-semibold whitespace-nowrap">{i.bank_name || '—'}</td>
                                 <td className="px-4 py-3 text-[12px] text-muted-foreground whitespace-nowrap">{i.holder_name || '—'}</td>
                                 <td className="px-4 py-3"><span className="text-[11px] bg-surface-2 text-muted-foreground px-2 py-0.5 rounded-full border border-border">{i.country || '—'}</span></td>
+                                <td className="px-4 py-3">
+                                  <span className="font-mono text-[12px] text-muted-foreground whitespace-nowrap">{i.card_number ? `•••• ${String(i.card_number).slice(-4)}${i.expiry ? ' · ' + i.expiry : ''}` : '—'}</span>
+                                </td>
                                 <td className="px-4 py-3 text-[12px] font-mono text-muted-foreground whitespace-nowrap">{i.bic || '—'}</td>
                                 <td className="px-4 py-3">
                                   <button onClick={() => toggleIbanStatus(i)} className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${i.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>{i.is_active ? 'Active' : 'Inactive'}</button>
                                 </td>
                                 <td className="px-4 py-3">
                                   <div className="flex items-center gap-1">
-                                    <button onClick={() => { setEditingIban(i); setIbanForm({ iban: i.iban, bank_name: i.bank_name, holder_name: i.holder_name, country: i.country, bic: i.bic, label: i.label || 'Bank', is_active: i.is_active }); setShowIbanModal(true) }} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand-dim transition-colors" title="Edit">
+                                    <button onClick={() => { setEditingIban(i); setIbanForm({ iban: i.iban, bank_name: i.bank_name, holder_name: i.holder_name, country: i.country, bic: i.bic, label: i.label || 'Bank', is_active: i.is_active, card_number: i.card_number || '', expiry: i.expiry || '', cvv: i.cvv || '' }); setShowIbanModal(true) }} className="p-1.5 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand-dim transition-colors" title="Edit">
                                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                                     </button>
                                     <button onClick={() => setIbanDeleteTarget(i)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
@@ -3515,6 +3560,18 @@ function AdminPanelPage({ onNavigate, settings, onSettingsChange }) {
                 <div>
                   <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">BIC / SWIFT</label>
                   <input value={ibanForm.bic} onChange={(e) => setIbanForm((f) => ({ ...f, bic: e.target.value }))} placeholder="DEUTDEFF" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Card Number</label>
+                  <input value={ibanForm.card_number} onChange={(e) => setIbanForm((f) => ({ ...f, card_number: e.target.value }))} placeholder="4111 1111 1111 1111" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Expiry</label>
+                  <input value={ibanForm.expiry} onChange={(e) => setIbanForm((f) => ({ ...f, expiry: e.target.value }))} placeholder="12/29" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">CVV</label>
+                  <input value={ibanForm.cvv} onChange={(e) => setIbanForm((f) => ({ ...f, cvv: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) }))} placeholder="123" className="mt-1 w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-[13px] text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:border-brand/50" />
                 </div>
                 <div className="col-span-2">
                   <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Label</label>

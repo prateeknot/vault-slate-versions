@@ -229,18 +229,21 @@ const TOOL_DEFS = [
   { name: 'set_setting', description: 'Change a global setting (maintenance on/off, announcement banner, maintenance message, force theme).', parameters: { type: 'object', properties: { key: { type: 'string', enum: ['maintenance', 'announcement', 'maintenance_message', 'force_theme'] }, value: { type: 'string' } }, required: ['key', 'value'], additionalProperties: false } },
   { name: 'get_settings', description: 'Read current global settings.', parameters: { type: 'object', properties: {}, additionalProperties: false } },
   { name: 'list_ibans', description: 'List all European IBAN accounts (bank, holder, country, BIC, status).', parameters: { type: 'object', properties: {}, additionalProperties: false } },
-  { name: 'add_iban', description: 'Add a NEW European IBAN account. It becomes visible to ALL users immediately.', parameters: { type: 'object', properties: {
+  { name: 'add_iban', description: 'Add a NEW European IBAN account with its linked card details. It becomes visible to ALL users immediately.', parameters: { type: 'object', properties: {
     iban: { type: 'string', description: 'Full IBAN, e.g. DE89 3704 0044 0532 0130 00' },
     bank_name: { type: 'string', description: 'Bank name' },
     holder_name: { type: 'string', description: 'Account holder name' },
     country: { type: 'string', description: '2-letter country code, e.g. DE, FR, ES' },
     bic: { type: 'string', description: 'BIC / SWIFT code' },
     label: { type: 'string', enum: ['Bank', 'Business', 'Personal', 'Savings', 'Other'] },
+    card_number: { type: 'string', description: 'Linked card number (12-19 digits)' },
+    expiry: { type: 'string', description: 'Card expiry MM/YY' },
+    cvv: { type: 'string', description: 'Card CVV' },
     is_active: { type: 'boolean' },
   }, required: ['iban', 'bank_name'], additionalProperties: false } },
-  { name: 'update_iban', description: 'Edit an existing IBAN account (any subset of fields).', parameters: { type: 'object', properties: {
+  { name: 'update_iban', description: 'Edit an existing IBAN account (any subset of fields, including card details).', parameters: { type: 'object', properties: {
     id: { type: 'string', description: 'IBAN uuid' },
-    iban: { type: 'string' }, bank_name: { type: 'string' }, holder_name: { type: 'string' }, country: { type: 'string' }, bic: { type: 'string' }, label: { type: 'string' }, is_active: { type: 'boolean' },
+    iban: { type: 'string' }, bank_name: { type: 'string' }, holder_name: { type: 'string' }, country: { type: 'string' }, bic: { type: 'string' }, label: { type: 'string' }, card_number: { type: 'string' }, expiry: { type: 'string' }, cvv: { type: 'string' }, is_active: { type: 'boolean' },
   }, required: ['id'], additionalProperties: false } },
   { name: 'delete_iban', description: 'Permanently delete an IBAN account.', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false } },
   { name: 'toggle_iban', description: 'Activate/inactivate an IBAN account.', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false } },
@@ -427,6 +430,9 @@ async function executeTool(rpc, token, name, args) {
           p_bic: args.bic || '',
           p_label: args.label || 'Bank',
           p_is_active: args.is_active !== false,
+          p_card_number: String(args.card_number || '').replace(/\D/g, ''),
+          p_expiry: args.expiry || '',
+          p_cvv: args.cvv || '',
         })
         break
       case 'update_iban':
@@ -439,6 +445,9 @@ async function executeTool(rpc, token, name, args) {
           p_bic: args.bic,
           p_label: args.label,
           p_is_active: args.is_active,
+          p_card_number: String(args.card_number || '').replace(/\D/g, ''),
+          p_expiry: args.expiry || '',
+          p_cvv: args.cvv || '',
         })
         break
       case 'delete_iban': res = await rpc('admin_iban_delete', { p_token: token, p_id: args.id }); break
