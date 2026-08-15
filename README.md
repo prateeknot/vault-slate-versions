@@ -44,8 +44,12 @@ TURNSTILE_SECRET=...   # runtime-only, lives in the edge function env (never in 
 ```
 src/
 ├── main.jsx              # Entry
-├── App.jsx               # All pages + components (single-file)
+├── App.jsx               # Thin shell — view routing, auth state, settings, theme
 ├── index.css             # Theme system + iOS glass surface system
+├── constants/            # Static config: app, plans, admin, cards, themes, iban
+├── utils/                # formatCardNumber/maskCardNumber + admin session token
+├── components/           # ui (Toast/CopyButton/ChipSVG/ProviderLogo), nav (BottomNav), cards (VirtualCardVisual/CardListItem/CardDetailModal)
+├── pages/                # Landing, Auth, Cards, Pricing, IBAN, FakeID, FAQ, Account + admin/AdminPanelPage
 └── lib/supabase.js       # Supabase client
 functions/api/           # Cloudflare Pages Functions (edge) — Turnstile verify
 supabase/migrations/      # SQL migrations (schema, RLS, RPCs)

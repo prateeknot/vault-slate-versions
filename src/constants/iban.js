@@ -1,0 +1,2 @@
+// European country names for IBAN country codes
+export const IBAN_COUNTRY_NAMES = { DE: 'Germany', FR: 'France', ES: 'Spain', IT: 'Italy', NL: 'Netherlands', BE: 'Belgium', AT: 'Austria', PT: 'Portugal', IE: 'Ireland', PL: 'Poland', SE: 'Sweden', FI: 'Finland', DK: 'Denmark', CZ: 'Czechia', HU: 'Hungary', RO: 'Romania', BG: 'Bulgaria', GR: 'Greece', HR: 'Croatia', SK: 'Slovakia', SI: 'Slovenia', LT: 'Lithuania', LV: 'Latvia', EE: 'Estonia', CY: 'Cyprus', MT: 'Malta', LU: 'Luxembourg' }
