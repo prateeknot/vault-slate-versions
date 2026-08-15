@@ -17,7 +17,8 @@ Temporary virtual card management web app. Admin lists virtual cards in tier poo
 - Animated flip cards, shimmer, bottom-nav, card detail modal with one-tap copy
 - Full admin panel: overview stats, card CRUD + bulk add, user management + card assignment, Payments tab (UPI QR requests: **Activate auto-assigns the purchased tier's card**), plan limits, admin codes
 - **IBAN Accounts (v12):** admin adds European IBAN accounts (with linked card number/expiry/CVV) in Manage Cards → 🏦 IBAN sub-tab; every user sees ALL active IBANs (latest first, no per-user limit) on the IBAN page — reachable from its own **IBAN tab in the bottom nav** or via Cards/Settings links. Plans moved out of the bottom nav — buy via "Add a card" on Cards or "Upgrade Plan" in Settings.
-- **Fake ID Generator (v13):** the center **+ button in the bottom nav is now the FakeID page** — users tap Generate and get a random full identity (personal details + bank + IBAN + credit card) from the admin pool in ~1s, shuffled so everyone gets a different one (1 per user). Admin adds IDs by pasting complete formatted blocks into a single textarea in the new **Fake IDs** admin tab. IBAN page redesigned with the cards-style gradient look.
+- **Fake ID Generator (v13/v13.1):** the center **+ button in the bottom nav is now the FakeID page** — every Generate pulls a NEW random full identity (personal details + bank + IBAN + credit card) from the admin pool in ~1s and saves it to the user's collection; each saved ID can be **deleted** anytime (returns to the pool). Admin adds IDs by pasting complete formatted blocks into a single textarea in the new **Fake IDs** admin tab.
+- **Payments tab (v13.1):** admin Orders + Upgrade Requests merged into one **Payments** page with a sub-tab switch. IBAN cards now use the same list style as the Cards page; IBAN + Fake ID pages have no back button (they are separate nav pages).
 
 ## Run Locally
 
